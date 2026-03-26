@@ -33,6 +33,13 @@
             <label class="form-label">Subject</label>
             <input type="text" name="subject" class="form-control" value="{{ old('subject') }}" placeholder="e.g. Polity, Quant, Reasoning, Current Affairs">
           </div>
+          <div class="form-group">
+            <label class="form-label">Exam Type</label>
+            <select name="exam_type" class="form-control">
+              <option value="mock">Mock Exam Paper</option>
+              <option value="previous_year">Old Exam Paper (PYQ)</option>
+            </select>
+          </div>
           <div class="g-grid" style="grid-template-columns:1fr 1fr;gap:.75rem">
             <div class="form-group" style="margin:0">
               <label class="form-label">Category <span style="color:var(--err)">*</span></label>

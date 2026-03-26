@@ -13,10 +13,17 @@
   <div class="exam-card-body">
     <div class="exam-card-meta">
       <span class="badge badge-teal" style="font-size:.65rem">{{ $exam->category->name ?? 'Exam' }}</span>
+      @if($exam->exam_type)
+        <span>•</span>
+        <span class="badge badge-gray" style="font-size:.65rem">{{ $exam->exam_type==='previous_year' ? 'PYQ' : 'Mock' }}</span>
+      @endif
       <span>•</span>
       <span class="badge badge-gray" style="font-size:.65rem">{{ ucfirst($exam->difficulty) }}</span>
     </div>
     <div class="exam-card-title">{{ $exam->title }}</div>
+    @if($exam->subject)
+      <div style="font-size:.82rem;color:var(--ink-l);margin-top:.25rem">{{ $exam->subject }}</div>
+    @endif
     <div class="exam-card-stats">
       <span>📝 {{ $exam->total_questions }} Qs</span>
       <span>⏱ {{ $exam->duration_minutes }} min</span>

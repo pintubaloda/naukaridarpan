@@ -149,6 +149,7 @@ class AdminController extends Controller
             'category_id'      => $r->category_id,
             'title'            => $r->title,
             'subject'          => $r->subject,
+            'exam_type'        => $r->exam_type ?? 'mock',
             'slug'             => \Illuminate\Support\Str::slug($r->title) . '-' . \Illuminate\Support\Str::random(5),
             'description'      => $r->description,
             'language'         => $r->language,

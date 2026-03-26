@@ -14,12 +14,18 @@
 
       <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem;flex-wrap:wrap">
         <span class="badge badge-teal">{{ $exam->category->name }}</span>
+        @if($exam->exam_type)
+          <span class="badge badge-gray">{{ $exam->exam_type==='previous_year' ? 'PYQ' : 'Mock' }}</span>
+        @endif
         <span class="badge badge-gray">{{ ucfirst($exam->difficulty) }}</span>
         <span class="badge badge-gray">{{ $exam->language }}</span>
         @if($exam->is_free)<span class="badge badge-green">Free</span>@endif
       </div>
 
-      <h1 style="font-size:1.75rem;margin-bottom:.75rem">{{ $exam->title }}</h1>
+      <h1 style="font-size:1.75rem;margin-bottom:.4rem">{{ $exam->title }}</h1>
+      @if($exam->subject)
+        <div style="font-size:.95rem;color:var(--ink-l);margin-bottom:.75rem">{{ $exam->subject }}</div>
+      @endif
 
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
         <div class="exam-seller">
@@ -125,7 +131,7 @@
           @endif
 
           <div style="border-top:1px solid var(--border-l);margin-top:1.25rem;padding-top:1rem">
-            @foreach(['Secure TAO exam engine','Instant result & analysis','Hindi & English support','Access on any device','Valid for '.$exam->max_retakes.' attempt(s)'] as $f)
+            @foreach(['Secure exam engine','Instant result & analysis','Hindi & English support','Access on any device','Valid for '.$exam->max_retakes.' attempt(s)'] as $f)
             <div style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;padding:.3rem 0;color:var(--ink-m);font-family:var(--fu)">
               <svg width="14" height="14" fill="none" stroke="var(--ok)" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-width="2.5" stroke-linecap="round"/></svg>
               {{ $f }}

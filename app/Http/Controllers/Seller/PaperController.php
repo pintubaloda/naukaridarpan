@@ -58,6 +58,7 @@ class PaperController extends Controller
             'category_id'      => $r->category_id,
             'title'            => $r->title,
             'subject'          => $r->subject,
+            'exam_type'        => $r->exam_type ?? 'mock',
             'slug'             => Str::slug($r->title) . '-' . Str::random(5),
             'description'      => $r->description,
             'language'         => $r->language,

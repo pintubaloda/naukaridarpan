@@ -43,6 +43,12 @@
           <div class="card-body">
             <div class="form-group"><label class="form-label">Title *</label><input type="text" name="title" class="form-control" required></div>
             <div class="form-group"><label class="form-label">Subject</label><input type="text" name="subject" class="form-control"></div>
+            <div class="form-group"><label class="form-label">Exam Type</label>
+              <select name="exam_type" class="form-control">
+                <option value="mock">Mock Exam Paper</option>
+                <option value="previous_year">Old Exam Paper (PYQ)</option>
+              </select>
+            </div>
             <div class="g-grid" style="grid-template-columns:1fr 1fr;gap:.75rem">
               <div class="form-group"><label class="form-label">Category *</label><select name="category_id" class="form-control" required>@foreach($categories as $cat)<option value="{{ $cat->id }}">{{ $cat->name }}</option>@endforeach</select></div>
               <div class="form-group"><label class="form-label">Language</label><select name="language" class="form-control"><option>English</option><option>Hindi</option><option>Both</option></select></div>
