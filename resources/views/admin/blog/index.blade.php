@@ -47,10 +47,32 @@ async function generateAI(){
   document.getElementById('ai-status').style.display='flex';
   document.getElementById('ai-btn').disabled=true;
   try{
-    const r=await fetch('{{ route('admin.blog.generate') }}',{method:'POST',headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Content-Type':'application/json'},body:JSON.stringify({language:'English'})});
+    const topic = prompt('Enter topic for AI blog post:');
+    if (!topic) { document.getElementById('ai-status').style.display='none'; return; }
+    const category = prompt('Enter category (e.g. Current Affairs, Vacancy, Sports News):','Current Affairs') || 'Current Affairs';
+    const r=await fetch('{{ route('admin.blog.generate') }}',{
+      method:'POST',
+      headers:{
+        'X-CSRF-TOKEN':'{{ csrf_token() }}',
+        'Content-Type':'application/json',
+        'Accept':'application/json',
+        'X-Requested-With':'XMLHttpRequest'
+      },
+      credentials:'same-origin',
+      body:JSON.stringify({language:'English', topic, category})
+    });
+    const ct = r.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) {
+      const text = await r.text();
+      throw new Error('Unexpected response. Please login again. ' + text.slice(0,120));
+    }
     const d=await r.json();
-    if(d.success){document.getElementById('ai-status').textContent='✓ Post created: '+d.title+' (saved as draft)';setTimeout(()=>location.reload(),2000);}
-    else{document.getElementById('ai-status').className='alert alert-error mb-3';document.getElementById('ai-status').textContent='Generation failed: '+d.message;}
+    if(d.success){
+      document.getElementById('ai-status').textContent='✓ Draft generated. Open Create page to review.';
+    } else {
+      document.getElementById('ai-status').className='alert alert-error mb-3';
+      document.getElementById('ai-status').textContent='Generation failed: '+d.message;
+    }
   }catch(e){document.getElementById('ai-status').className='alert alert-error mb-3';document.getElementById('ai-status').textContent='Error: '+e.message;}
   document.getElementById('ai-btn').disabled=false;
 }
