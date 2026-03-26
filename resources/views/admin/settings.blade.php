@@ -29,6 +29,12 @@
             ['weekly_top_news_enabled','Weekly Most Important News (1=yes, 0=no)','1',''],
             ['blog_ads_code','Blog Ads HTML','','Paste Google Ads/AdSense snippet'],
           ]],
+          ['blog_images','Blog Images',[
+            ['image_source_default','Image Source Default','google','google or pexels'],
+            ['google_cse_api_key','Google CSE API Key','',''],
+            ['google_cse_cx','Google CSE CX','',''],
+            ['pexels_api_key','Pexels API Key','',''],
+          ]],
           ['scraper','Scraper AI',[
             ['scraper_ai_enabled','Scraper AI Enabled (1=yes, 0=no)','0',''],
             ['scraper_ai_provider','Scraper AI Provider','openai','openai or gemini'],

@@ -3,9 +3,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\BlogPost;
+use App\Models\PlatformSetting;
 use App\Services\AI\BlogGeneratorService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 
 class BlogAdminController extends Controller
 {
@@ -76,10 +79,74 @@ class BlogAdminController extends Controller
 
     public function generateAI(Request $r)
     {
-        $r->validate(['language' => 'nullable|in:English,Hindi']);
+        $r->validate([
+            'language' => 'nullable|in:English,Hindi',
+            'topic'    => 'required|string|max:200',
+            'category' => 'required|string|max:100',
+        ]);
         $service = app(BlogGeneratorService::class);
-        $post    = $service->generateDailyPost($r->language ?? 'English');
-        if ($post) return response()->json(['success' => true, 'post_id' => $post->id, 'title' => $post->title]);
+        $data    = $service->generateDraft($r->topic, $r->language ?? 'English', $r->category);
+        if ($data) return response()->json(['success' => true, 'data' => $data]);
         return response()->json(['success' => false, 'message' => 'AI generation failed. Check API key.'], 500);
+    }
+
+    public function searchImages(Request $r)
+    {
+        $r->validate([
+            'query'  => 'required|string|max:200',
+            'source' => 'required|in:google,pexels',
+        ]);
+        $query  = $r->query('query');
+        $source = $r->query('source');
+
+        if ($source === 'google') {
+            $key = PlatformSetting::get('google_cse_api_key');
+            $cx  = PlatformSetting::get('google_cse_cx');
+            if (! $key || ! $cx) return response()->json(['success' => false, 'message' => 'Google CSE not configured.'], 422);
+            $resp = Http::timeout(30)->get('https://www.googleapis.com/customsearch/v1', [
+                'key' => $key,
+                'cx' => $cx,
+                'searchType' => 'image',
+                'q' => $query,
+                'num' => 10,
+                'safe' => 'active',
+            ]);
+            $items = collect($resp->json('items', []))->map(function ($i) {
+                return [
+                    'thumb' => $i['image']['thumbnailLink'] ?? $i['link'] ?? null,
+                    'url'   => $i['link'] ?? null,
+                    'title' => $i['title'] ?? '',
+                ];
+            })->filter(fn($i) => $i['url'])->values();
+            return response()->json(['success' => true, 'items' => $items]);
+        }
+
+        $pexelsKey = PlatformSetting::get('pexels_api_key');
+        if (! $pexelsKey) return response()->json(['success' => false, 'message' => 'Pexels not configured.'], 422);
+        $resp = Http::withHeaders(['Authorization' => $pexelsKey])->timeout(30)->get('https://api.pexels.com/v1/search', [
+            'query' => $query,
+            'per_page' => 10,
+        ]);
+        $items = collect($resp->json('photos', []))->map(function ($p) {
+            return [
+                'thumb' => $p['src']['medium'] ?? $p['src']['small'] ?? null,
+                'url'   => $p['src']['large'] ?? $p['src']['original'] ?? null,
+                'title' => $p['alt'] ?? '',
+            ];
+        })->filter(fn($i) => $i['url'])->values();
+        return response()->json(['success' => true, 'items' => $items]);
+    }
+
+    public function attachImage(Request $r)
+    {
+        $r->validate(['image_url' => 'required|url']);
+        $url = $r->input('image_url');
+        $resp = Http::timeout(60)->get($url);
+        if (! $resp->successful()) return response()->json(['success' => false, 'message' => 'Failed to download image.'], 422);
+        $mime = $resp->header('Content-Type') ?? 'image/jpeg';
+        $ext = str_contains($mime, 'png') ? 'png' : (str_contains($mime, 'webp') ? 'webp' : 'jpg');
+        $path = 'blog/' . Str::uuid() . '.' . $ext;
+        Storage::disk('public')->put($path, $resp->body());
+        return response()->json(['success' => true, 'url' => Storage::url($path)]);
     }
 }

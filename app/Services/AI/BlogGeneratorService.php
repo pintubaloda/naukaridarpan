@@ -2,6 +2,7 @@
 namespace App\Services\AI;
 
 use App\Models\BlogPost;
+use App\Models\PlatformSetting;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -47,6 +48,12 @@ class BlogGeneratorService
         ]);
     }
 
+    public function generateDraft(string $topic, string $lang, string $cat): ?array
+    {
+        $data = $this->callClaude("$topic — " . now()->format('F Y'), $lang, $cat);
+        return is_array($data) ? $data : null;
+    }
+
     private function loadTopicsFromSettings(): array
     {
         $json = \App\Models\PlatformSetting::get('blog_topics_json', '');
@@ -62,14 +69,7 @@ class BlogGeneratorService
             : 'Write in simple English for aspirants from Tier 2/3 Indian cities.';
 
         try {
-            $resp = Http::withHeaders([
-                'x-api-key'         => config('services.anthropic.key'),
-                'anthropic-version' => '2023-06-01',
-                'content-type'      => 'application/json',
-            ])->timeout(60)->post($this->apiUrl, [
-                'model'      => config('services.anthropic.model', 'claude-sonnet-4-20250514'),
-                'max_tokens' => 2500,
-                'messages'   => [['role' => 'user', 'content' => <<<PROMPT
+            $prompt = <<<PROMPT
 You are a professional content writer for Naukaridarpan.com — India's top competitive exam platform.
 
 Write a comprehensive SEO-optimised blog article about: {$topic}
@@ -86,12 +86,43 @@ Return ONLY valid JSON (no markdown, no extra text):
   "body": "Full HTML article 900-1200 words using <h2>,<h3>,<p>,<ul>,<li>,<strong>,<table>,<tr>,<th>,<td>. Include: intro, key highlights/dates table, step-by-step guide, eligibility, 4 FAQs, conclusion with CTA to practice on Naukaridarpan.com"
 }
 PROMPT
-                ]],
-            ]);
+;
 
-            if (! $resp->successful()) { Log::error('BlogAI HTTP error ' . $resp->status()); return null; }
-            $text  = collect($resp->json('content'))->where('type','text')->first()['text'] ?? '';
-            $clean = trim(preg_replace('/```(?:json)?\n?/', '', $text), "` \n");
+            $provider = PlatformSetting::get('ai_provider', 'openai');
+            if ($provider === 'gemini') {
+                $key   = PlatformSetting::get('gemini_api_key');
+                $model = PlatformSetting::get('gemini_model', 'gemini-1.5-flash');
+                if (! $key) { Log::error('BlogAI Gemini key missing'); return null; }
+                $resp = Http::withHeaders([
+                    'x-goog-api-key' => $key,
+                    'content-type'  => 'application/json',
+                ])->timeout(60)->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent", [
+                    'contents' => [[
+                        'parts' => [[ 'text' => $prompt ]],
+                    ]],
+                ]);
+                if (! $resp->successful()) { Log::error('BlogAI Gemini HTTP error ' . $resp->status()); return null; }
+                $text = $resp->json('candidates.0.content.parts.0.text') ?? '';
+            } else {
+                $key   = PlatformSetting::get('openai_api_key');
+                $model = PlatformSetting::get('openai_model', 'gpt-4o-mini');
+                if (! $key) { Log::error('BlogAI OpenAI key missing'); return null; }
+                $resp = Http::withHeaders([
+                    'Authorization' => 'Bearer ' . $key,
+                    'Content-Type'  => 'application/json',
+                ])->timeout(60)->post('https://api.openai.com/v1/chat/completions', [
+                    'model' => $model,
+                    'messages' => [
+                        ['role' => 'system', 'content' => 'You are a helpful assistant that outputs only JSON.'],
+                        ['role' => 'user', 'content' => $prompt],
+                    ],
+                    'temperature' => 0.7,
+                ]);
+                if (! $resp->successful()) { Log::error('BlogAI OpenAI HTTP error ' . $resp->status()); return null; }
+                $text = $resp->json('choices.0.message.content') ?? '';
+            }
+
+            $clean = trim(preg_replace('/```(?:json)?\n?/', '', (string)$text), "` \n");
             $d     = json_decode($clean, true);
             return is_array($d) ? $d : null;
         } catch (\Exception $e) {

@@ -25,8 +25,87 @@
             <form action="{{ route('admin.blog.destroy',$post) }}" method="POST" onsubmit="return confirm('Delete?')">@csrf @method('DELETE')<button type="submit" class="btn btn-danger">Del</button></form>
           </div>
         </div>
+        <div class="card card-static card-body mt-3">
+          <div style="font-weight:600;font-family:var(--fu);margin-bottom:.75rem">Topic Images (Google / Pexels)</div>
+          <div class="form-group">
+            <label class="form-label">Search Images</label>
+            <input type="text" id="img-query" class="form-control" placeholder="e.g. Sports news, Current affairs" value="{{ $post->title }}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Source</label>
+            @php $imgDefault = \App\Models\PlatformSetting::get('image_source_default','google'); @endphp
+            <select id="img-source" class="form-control">
+              <option value="google" {{ $imgDefault==='google'?'selected':'' }}>Google CSE</option>
+              <option value="pexels" {{ $imgDefault==='pexels'?'selected':'' }}>Pexels</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:.75rem;align-items:center;margin-bottom:.75rem">
+            <button type="button" class="btn btn-primary btn-sm" id="img-search">Fetch Images</button>
+            <span id="img-status" class="text-muted" style="font-size:.85rem"></span>
+          </div>
+          <div id="img-results" style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem"></div>
+          <div id="img-preview" style="margin-top:.75rem;display:{{ $post->featured_image ? 'block' : 'none' }}">
+            <img id="img-preview-img" src="{{ $post->featured_image }}" alt="Selected" style="width:100%;border-radius:var(--r2)">
+          </div>
+        </div>
       </div>
     </div>
   </form>
 </div>
+@push('scripts')
+<script>
+const imgBtn = document.getElementById('img-search');
+const imgStatus = document.getElementById('img-status');
+const imgResults = document.getElementById('img-results');
+imgBtn?.addEventListener('click', async () => {
+  const q = document.getElementById('img-query').value.trim();
+  const source = document.getElementById('img-source').value;
+  if (!q) { imgStatus.textContent = 'Enter a topic or search term.'; return; }
+  imgStatus.textContent = 'Searching...';
+  imgBtn.disabled = true;
+  imgResults.innerHTML = '';
+  try {
+    const res = await fetch(`{{ route('admin.blog.images.search') }}?query=${encodeURIComponent(q)}&source=${source}`);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message || 'Failed');
+    (data.items || []).forEach(item => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.style.border = '1px solid var(--border)';
+      btn.style.borderRadius = '8px';
+      btn.style.overflow = 'hidden';
+      btn.style.padding = '0';
+      btn.style.background = '#fff';
+      btn.innerHTML = `<img src="${item.thumb}" alt="" style="width:100%;height:90px;object-fit:cover">`;
+      btn.onclick = async () => {
+        imgStatus.textContent = 'Saving image...';
+        const r = await fetch('{{ route('admin.blog.images.attach') }}', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value },
+          body: JSON.stringify({ image_url: item.url })
+        });
+        const d = await r.json();
+        if (d.success) {
+          const input = document.querySelector('input[name="featured_image"]');
+          input.value = d.url;
+          const box = document.getElementById('img-preview');
+          const img = document.getElementById('img-preview-img');
+          if (box && img) { img.src = d.url; box.style.display = 'block'; }
+          imgStatus.textContent = 'Image saved.';
+        } else {
+          imgStatus.textContent = d.message || 'Failed to save image.';
+        }
+      };
+      imgResults.appendChild(btn);
+    });
+    if ((data.items || []).length === 0) imgStatus.textContent = 'No images found.';
+    else imgStatus.textContent = 'Select an image to attach.';
+  } catch (e) {
+    imgStatus.textContent = 'Image search failed. Check API keys.';
+  } finally {
+    imgBtn.disabled = false;
+  }
+});
+</script>
+@endpush
 @endsection

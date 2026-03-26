@@ -101,6 +101,8 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::put('/blog/{post}',                       [BlogAdminController::class, 'update'])->name('blog.update');
     Route::delete('/blog/{post}',                    [BlogAdminController::class, 'destroy'])->name('blog.destroy');
     Route::post('/blog/generate-ai',                 [BlogAdminController::class, 'generateAI'])->name('blog.generate');
+    Route::get('/blog/images/search',                [BlogAdminController::class, 'searchImages'])->name('blog.images.search');
+    Route::post('/blog/images/attach',               [BlogAdminController::class, 'attachImage'])->name('blog.images.attach');
     Route::get('/scraped',                           [AdminController::class, 'scrapedPapers'])->name('scraped');
     Route::post('/scraped/{paper}/publish',          [AdminController::class, 'publishScraped'])->name('scraped.publish');
     Route::get('/professor-leads',                   [AdminController::class, 'professorLeads'])->name('professor-leads');

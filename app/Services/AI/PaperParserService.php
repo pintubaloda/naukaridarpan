@@ -2,6 +2,7 @@
 namespace App\Services\AI;
 
 use App\Models\ExamPaper;
+use App\Models\PlatformSetting;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -23,20 +24,27 @@ class PaperParserService
     {
         $paper->update(['parse_status' => 'processing', 'parse_log' => 'Reading PDF…']);
         try {
+            $provider = PlatformSetting::get('ai_provider', 'openai');
+            if ($provider !== 'gemini') {
+                return $this->fail($paper, 'PDF parsing requires Gemini. Switch AI provider to Gemini in admin settings.');
+            }
             $disk = config('filesystems.default', 'local');
             $b64  = base64_encode(Storage::disk($disk)->get($paper->original_file));
-            $resp = Http::withHeaders($this->headers())->timeout(180)->post($this->apiUrl, [
-                'model'      => config('services.anthropic.model', 'claude-sonnet-4-20250514'),
-                'max_tokens' => 8000,
-                'messages'   => [[
-                    'role'    => 'user',
-                    'content' => [
-                        ['type' => 'document', 'source' => ['type' => 'base64', 'media_type' => 'application/pdf', 'data' => $b64]],
-                        ['type' => 'text', 'text' => $this->prompt()],
+            $key  = PlatformSetting::get('gemini_api_key');
+            $model= PlatformSetting::get('gemini_model', 'gemini-1.5-flash');
+            if (! $key) return $this->fail($paper, 'Gemini API key missing.');
+            $resp = Http::withHeaders([
+                'x-goog-api-key' => $key,
+                'content-type'   => 'application/json',
+            ])->timeout(180)->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent", [
+                'contents' => [[
+                    'parts' => [
+                        ['inline_data' => ['mime_type' => 'application/pdf', 'data' => $b64]],
+                        ['text' => $this->prompt()],
                     ],
                 ]],
             ]);
-            return $this->handleResponse($paper, $resp);
+            return $this->handleGeminiResponse($paper, $resp);
         } catch (\Exception $e) {
             return $this->fail($paper, $e->getMessage());
         }
@@ -46,12 +54,34 @@ class PaperParserService
     {
         $paper->update(['parse_status' => 'processing', 'parse_log' => 'Parsing typed content…']);
         try {
-            $resp = Http::withHeaders($this->headers())->timeout(120)->post($this->apiUrl, [
-                'model'      => config('services.anthropic.model', 'claude-sonnet-4-20250514'),
-                'max_tokens' => 8000,
-                'messages'   => [['role' => 'user', 'content' => $this->prompt() . "\n\nCONTENT:\n" . $raw]],
+            $provider = PlatformSetting::get('ai_provider', 'openai');
+            if ($provider === 'gemini') {
+                $key   = PlatformSetting::get('gemini_api_key');
+                $model = PlatformSetting::get('gemini_model', 'gemini-1.5-flash');
+                if (! $key) return $this->fail($paper, 'Gemini API key missing.');
+                $resp = Http::withHeaders([
+                    'x-goog-api-key' => $key,
+                    'content-type'   => 'application/json',
+                ])->timeout(120)->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent", [
+                    'contents' => [[ 'parts' => [[ 'text' => $this->prompt() . \"\\n\\nCONTENT:\\n\" . $raw ]] ]],
+                ]);
+                return $this->handleGeminiResponse($paper, $resp);
+            }
+            $key   = PlatformSetting::get('openai_api_key');
+            $model = PlatformSetting::get('openai_model', 'gpt-4o-mini');
+            if (! $key) return $this->fail($paper, 'OpenAI API key missing.');
+            $resp = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $key,
+                'Content-Type'  => 'application/json',
+            ])->timeout(120)->post('https://api.openai.com/v1/chat/completions', [
+                'model' => $model,
+                'messages' => [
+                    ['role' => 'system', 'content' => 'You are a helpful assistant that outputs only JSON.'],
+                    ['role' => 'user', 'content' => $this->prompt() . \"\\n\\nCONTENT:\\n\" . $raw],
+                ],
+                'temperature' => 0.2,
             ]);
-            return $this->handleResponse($paper, $resp);
+            return $this->handleOpenAIResponse($paper, $resp);
         } catch (\Exception $e) {
             return $this->fail($paper, $e->getMessage());
         }
@@ -64,18 +94,25 @@ class PaperParserService
             $resp = Http::timeout(60)->get($url);
             if (! $resp->successful()) return $this->fail($paper, 'Failed to download PDF: ' . $resp->status());
             $b64  = base64_encode($resp->body());
-            $ai   = Http::withHeaders($this->headers())->timeout(180)->post($this->apiUrl, [
-                'model'      => config('services.anthropic.model', 'claude-sonnet-4-20250514'),
-                'max_tokens' => 8000,
-                'messages'   => [[
-                    'role'    => 'user',
-                    'content' => [
-                        ['type' => 'document', 'source' => ['type' => 'base64', 'media_type' => 'application/pdf', 'data' => $b64]],
-                        ['type' => 'text', 'text' => $this->prompt()],
+            $provider = PlatformSetting::get('ai_provider', 'openai');
+            if ($provider !== 'gemini') {
+                return $this->fail($paper, 'PDF parsing requires Gemini. Switch AI provider to Gemini in admin settings.');
+            }
+            $key  = PlatformSetting::get('gemini_api_key');
+            $model= PlatformSetting::get('gemini_model', 'gemini-1.5-flash');
+            if (! $key) return $this->fail($paper, 'Gemini API key missing.');
+            $ai   = Http::withHeaders([
+                'x-goog-api-key' => $key,
+                'content-type'   => 'application/json',
+            ])->timeout(180)->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent", [
+                'contents' => [[
+                    'parts' => [
+                        ['inline_data' => ['mime_type' => 'application/pdf', 'data' => $b64]],
+                        ['text' => $this->prompt()],
                     ],
                 ]],
             ]);
-            return $this->handleResponse($paper, $ai);
+            return $this->handleGeminiResponse($paper, $ai);
         } catch (\Exception $e) {
             return $this->fail($paper, $e->getMessage());
         }
@@ -89,9 +126,31 @@ class PaperParserService
         $qs     = $parsed['questions'] ?? [];
 
         // Store questions in paper
+        return $this->storeParsed($paper, $parsed);
+    }
+
+    private function handleOpenAIResponse(ExamPaper $paper, $resp): array
+    {
+        if (! $resp->successful()) return $this->fail($paper, 'OpenAI API error: ' . $resp->status());
+        $text = $resp->json('choices.0.message.content') ?? '';
+        $parsed = $this->extractJson($text);
+        return $this->storeParsed($paper, $parsed);
+    }
+
+    private function handleGeminiResponse(ExamPaper $paper, $resp): array
+    {
+        if (! $resp->successful()) return $this->fail($paper, 'Gemini API error: ' . $resp->status());
+        $text = $resp->json('candidates.0.content.parts.0.text') ?? '';
+        $parsed = $this->extractJson($text);
+        return $this->storeParsed($paper, $parsed);
+    }
+
+    private function storeParsed(ExamPaper $paper, array $parsed): array
+    {
+        $qs = $parsed['questions'] ?? [];
         $paper->update([
             'parse_status'    => 'done',
-            'parse_log'       => 'Parsed ' . count($qs) . ' questions via Claude AI.',
+            'parse_log'       => 'Parsed ' . count($qs) . ' questions via AI.',
             'total_questions' => count($qs),
             'question_types'  => $this->typeSummary($qs),
             'questions_data'  => json_encode($qs),

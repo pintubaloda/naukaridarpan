@@ -63,6 +63,9 @@
           <div class="blog-cat">{{ $post->category }}</div>
           <div class="blog-title">{{ $post->title }}</div>
           @if($post->excerpt)<p style="font-size:.82rem;color:var(--ink-l);line-height:1.5;margin-bottom:.5rem">{{ Str::limit($post->excerpt,100) }}</p>@endif
+          <div style="margin:.5rem 0">
+            <span class="btn btn-ghost btn-sm">View More →</span>
+          </div>
           <div style="display:flex;align-items:center;justify-content:space-between;font-size:.76rem;color:var(--ink-l);font-family:var(--fu)">
             <span>{{ $post->published_at?->format('d M Y') }}</span>
             @if($post->is_ai_generated)<span class="badge badge-gray" style="font-size:.65rem">AI</span>@endif
