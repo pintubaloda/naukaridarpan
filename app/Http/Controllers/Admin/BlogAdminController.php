@@ -55,7 +55,17 @@ class BlogAdminController extends Controller
 
     public function update(Request $r, BlogPost $post)
     {
-        $r->validate(['title'=>'required|string|max:255','content'=>'required|string','status'=>'required|in:draft,published,archived']);
+        $r->validate([
+            'title'            => 'required|string|max:255',
+            'content'          => 'required|string',
+            'status'           => 'required|in:draft,published,archived',
+            'category'         => 'required|string|max:100',
+            'excerpt'          => 'nullable|string|max:500',
+            'featured_image'   => 'nullable|string|max:1000',
+            'meta_title'       => 'nullable|string|max:80',
+            'meta_description' => 'nullable|string|max:200',
+            'tags'             => 'nullable|string',
+        ]);
         $post->update([
             'title'            => $r->title,
             'excerpt'          => $r->excerpt,
@@ -89,7 +99,34 @@ class BlogAdminController extends Controller
         ]);
         $service = app(BlogGeneratorService::class);
         $data    = $service->generateDraft($r->topic, $r->language ?? 'English', $r->category);
-        if ($data) return response()->json(['success' => true, 'data' => $data, 'provider' => \App\Models\PlatformSetting::get('ai_provider','openai')]);
+        if ($data) {
+            try {
+                $post = BlogPost::create([
+                    'author_id'        => auth()->id(),
+                    'title'            => $data['title'] ?? $r->topic,
+                    'slug'             => Str::slug($data['title'] ?? $r->topic) . '-' . Str::random(4),
+                    'excerpt'          => $data['excerpt'] ?? null,
+                    'featured_image'   => $data['featured_image'] ?? null,
+                    'content'          => $data['body'] ?? ($data['content'] ?? ''),
+                    'category'         => $data['category'] ?? $r->category,
+                    'meta_title'       => $data['meta_title'] ?? ($data['title'] ?? $r->topic),
+                    'meta_description' => $data['meta_description'] ?? null,
+                    'tags'             => !empty($data['tags']) ? $data['tags'] : [],
+                    'status'           => 'draft',
+                    'published_at'     => null,
+                    'is_ai_generated'  => true,
+                ]);
+                return response()->json([
+                    'success'  => true,
+                    'data'     => $data,
+                    'provider' => \App\Models\PlatformSetting::get('ai_provider','openai'),
+                    'post_id'  => $post->id,
+                    'edit_url' => route('admin.blog.edit', $post),
+                ]);
+            } catch (\Exception $e) {
+                $service->lastError = 'Failed to save draft: ' . $e->getMessage();
+            }
+        }
         $msg = $service->lastError ?: 'AI generation failed. Check API key.';
         return response()->json(['success' => false, 'message' => $msg], 500);
     }
