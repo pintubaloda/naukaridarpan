@@ -110,10 +110,9 @@ async function generateAI(){
     }
     const d=await r.json();
     if(d.success){
-      document.getElementById('ai-status-text').textContent='✓ Draft saved. Opening editor...';
+      document.getElementById('ai-status-text').textContent='✓ Draft saved successfully.';
       document.getElementById('ai-spinner').style.display='none';
-      if (d.edit_url) { window.location.href = d.edit_url; return; }
-      if (d.post_id) { window.location.href = `{{ url('/admin/blog') }}/${d.post_id}/edit`; return; }
+      setTimeout(()=>window.location.reload(), 800);
     } else {
       document.getElementById('ai-status').className='alert alert-error mb-3';
       document.getElementById('ai-status-text').textContent='Generation failed: '+d.message;
