@@ -20,6 +20,23 @@ class Kernel extends ConsoleKernel
 
         // Scrape professor leads every Monday 3 AM
         $schedule->command('scrape:professors')->weekly()->mondays()->at('03:00');
+
+        // Weekly blogs (configurable via settings)
+        $schedule->command('blog:generate --lang=English --topic="Weekly Current Affairs" --category="Current Affairs"')
+            ->weekly()->mondays()->at('08:00')->withoutOverlapping()
+            ->when(fn() => \App\Models\PlatformSetting::get('weekly_current_affairs_enabled', '1') === '1');
+
+        $schedule->command('blog:generate --lang=English --topic="Weekly Historical News" --category="Historical News"')
+            ->weekly()->tuesdays()->at('08:00')->withoutOverlapping()
+            ->when(fn() => \App\Models\PlatformSetting::get('weekly_historical_news_enabled', '1') === '1');
+
+        $schedule->command('blog:generate --lang=English --topic="Weekly Sports News" --category="Sports News"')
+            ->weekly()->wednesdays()->at('08:00')->withoutOverlapping()
+            ->when(fn() => \App\Models\PlatformSetting::get('weekly_sports_news_enabled', '1') === '1');
+
+        $schedule->command('blog:generate --lang=English --topic="Weekly Most Important News" --category="Most Important News"')
+            ->weekly()->thursdays()->at('08:00')->withoutOverlapping()
+            ->when(fn() => \App\Models\PlatformSetting::get('weekly_top_news_enabled', '1') === '1');
     }
 
     protected function commands(): void

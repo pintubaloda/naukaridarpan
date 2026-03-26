@@ -20,10 +20,16 @@ class BlogGeneratorService
         'Current Affairs' => ['Daily Current Affairs India','Monthly GK Digest for Competitive Exams','Important Government Schemes 2025'],
     ];
 
-    public function generateDailyPost(string $lang = 'English'): ?BlogPost
+    public function generateDailyPost(string $lang = 'English', ?string $forcedTopic = null, ?string $forcedCategory = null): ?BlogPost
     {
-        $cat   = array_rand($this->topics);
-        $topic = $this->topics[$cat][array_rand($this->topics[$cat])];
+        $topics = $this->loadTopicsFromSettings() ?: $this->topics;
+        if ($forcedTopic && $forcedCategory) {
+            $cat = $forcedCategory;
+            $topic = $forcedTopic;
+        } else {
+            $cat   = array_rand($topics);
+            $topic = $topics[$cat][array_rand($topics[$cat])];
+        }
         $data  = $this->callClaude("$topic — " . now()->format('F Y'), $lang, $cat);
         if (! $data) return null;
 
@@ -39,6 +45,14 @@ class BlogGeneratorService
             'is_ai_generated'  => true,
             'status'           => 'draft',
         ]);
+    }
+
+    private function loadTopicsFromSettings(): array
+    {
+        $json = \App\Models\PlatformSetting::get('blog_topics_json', '');
+        if (! $json) return [];
+        $data = json_decode($json, true);
+        return is_array($data) ? $data : [];
     }
 
     private function callClaude(string $topic, string $lang, string $cat): ?array

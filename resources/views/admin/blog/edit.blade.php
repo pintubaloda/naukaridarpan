@@ -14,10 +14,11 @@
       </div>
       <div style="position:sticky;top:80px">
         <div class="card card-static card-body">
-          <div class="form-group"><label class="form-label">Category</label><select name="category" class="form-control">@foreach(['Sarkari Result','Admit Card','Vacancy','Exam Date','Answer Key','Study Tips','Current Affairs'] as $c)<option value="{{ $c }}" {{ $post->category==$c?'selected':'' }}>{{ $c }}</option>@endforeach</select></div>
+          <div class="form-group"><label class="form-label">Category</label><select name="category" class="form-control">@foreach(['Sarkari Result','Admit Card','Vacancy','Exam Date','Answer Key','Study Tips','Current Affairs','Historical News','Sports News','Most Important News'] as $c)<option value="{{ $c }}" {{ $post->category==$c?'selected':'' }}>{{ $c }}</option>@endforeach</select></div>
           <div class="form-group"><label class="form-label">Status</label><select name="status" class="form-control"><option value="draft" {{ $post->status=='draft'?'selected':'' }}>Draft</option><option value="published" {{ $post->status=='published'?'selected':'' }}>Published</option><option value="archived" {{ $post->status=='archived'?'selected':'' }}>Archived</option></select></div>
           <div class="form-group"><label class="form-label">Meta Title</label><input type="text" name="meta_title" class="form-control" value="{{ old('meta_title',$post->meta_title) }}"></div>
           <div class="form-group"><label class="form-label">Meta Description</label><textarea name="meta_description" class="form-control" rows="2">{{ old('meta_description',$post->meta_description) }}</textarea></div>
+          <div class="form-group"><label class="form-label">Featured Image URL</label><input type="url" name="featured_image" class="form-control" value="{{ old('featured_image',$post->featured_image) }}"></div>
           <div class="form-group"><label class="form-label">Tags</label><input type="text" name="tags" class="form-control" value="{{ old('tags',implode(', ',$post->tags??[])) }}"></div>
           <div style="display:flex;gap:.5rem">
             <button type="submit" class="btn btn-primary" style="flex:1">Save</button>

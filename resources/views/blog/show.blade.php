@@ -11,6 +11,11 @@
       </div>
       <span class="badge badge-saffron mb-2">{{ $post->category }}</span>
       <h1 style="font-size:2rem;line-height:1.25;margin-bottom:1rem">{{ $post->title }}</h1>
+      @if($post->featured_image)
+      <div style="margin:0 0 1.5rem;border-radius:var(--r2);overflow:hidden">
+        <img src="{{ $post->featured_image }}" alt="{{ $post->title }}" style="width:100%;height:auto;display:block">
+      </div>
+      @endif
       <div style="display:flex;align-items:center;gap:1rem;font-size:.82rem;color:var(--ink-l);font-family:var(--fu);margin-bottom:2rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border)">
         <span>{{ $post->published_at?->format('d M Y, g:i A') }}</span>
         <span>·</span><span>{{ $post->view_count }} views</span>
@@ -24,6 +29,12 @@
       <div class="blog-content" style="line-height:1.8;font-size:1rem;color:var(--ink-m)">
         {!! $post->content !!}
       </div>
+      @php $ads = \App\Models\PlatformSetting::get('blog_ads_code',''); @endphp
+      @if($ads)
+      <div style="margin:2rem 0;padding:1rem;border:1px dashed var(--border);border-radius:var(--r2);background:#fff">
+        {!! $ads !!}
+      </div>
+      @endif
       {{-- Tags --}}
       @if($post->tags)
       <div style="margin-top:2rem;padding-top:1.25rem;border-top:1px solid var(--border-l);display:flex;flex-wrap:wrap;gap:.4rem">

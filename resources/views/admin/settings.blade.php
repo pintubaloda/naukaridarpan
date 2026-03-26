@@ -19,7 +19,16 @@
             ['gemini_api_key','Gemini API Key','','Stored in DB; keep private'],
             ['gemini_model','Gemini Model','gemini-1.5-flash','Example: gemini-1.5-flash'],
           ]],
-          ['blog','AI Blog',[['auto_blog_enabled','Auto Blog Enabled (1=yes, 0=no)','1',''],['auto_blog_language','Blog Language','English','English or Hindi']]],
+          ['blog','AI Blog',[
+            ['auto_blog_enabled','Auto Blog Enabled (1=yes, 0=no)','1',''],
+            ['auto_blog_language','Blog Language','English','English or Hindi'],
+            ['blog_topics_json','Blog Topics JSON','','JSON map of categories to topics; leave blank to use defaults'],
+            ['weekly_current_affairs_enabled','Weekly Current Affairs (1=yes, 0=no)','1',''],
+            ['weekly_historical_news_enabled','Weekly Historical News (1=yes, 0=no)','1',''],
+            ['weekly_sports_news_enabled','Weekly Sports News (1=yes, 0=no)','1',''],
+            ['weekly_top_news_enabled','Weekly Most Important News (1=yes, 0=no)','1',''],
+            ['blog_ads_code','Blog Ads HTML','','Paste Google Ads/AdSense snippet'],
+          ]],
           ['scraper','Scraper AI',[
             ['scraper_ai_enabled','Scraper AI Enabled (1=yes, 0=no)','0',''],
             ['scraper_ai_provider','Scraper AI Provider','openai','openai or gemini'],

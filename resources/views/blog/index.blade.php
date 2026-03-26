@@ -51,9 +51,13 @@
     @foreach($posts as $post)
     <a href="{{ route('blog.show',$post->slug) }}" style="text-decoration:none">
       <div class="card blog-card" style="height:100%">
-        <div class="blog-thumb" style="background:var(--teal-l);display:flex;align-items:center;justify-content:center;font-size:2rem">
-          @php $icons=['Sarkari Result'=>'📋','Admit Card'=>'🪪','Vacancy'=>'💼','Exam Date'=>'📅','Answer Key'=>'🔑','Study Tips'=>'📚','Current Affairs'=>'📰']; @endphp
-          {{ $icons[$post->category] ?? '📝' }}
+      <div class="blog-thumb" style="background:var(--teal-l);display:flex;align-items:center;justify-content:center;font-size:2rem;overflow:hidden">
+          @if($post->featured_image)
+            <img src="{{ $post->featured_image }}" alt="{{ $post->title }}" style="width:100%;height:100%;object-fit:cover">
+          @else
+            @php $icons=['Sarkari Result'=>'📋','Admit Card'=>'🪪','Vacancy'=>'💼','Exam Date'=>'📅','Answer Key'=>'🔑','Study Tips'=>'📚','Current Affairs'=>'📰','Historical News'=>'🏛️','Sports News'=>'🏅','Most Important News'=>'🗞️']; @endphp
+            {{ $icons[$post->category] ?? '📝' }}
+          @endif
         </div>
         <div class="blog-body">
           <div class="blog-cat">{{ $post->category }}</div>
