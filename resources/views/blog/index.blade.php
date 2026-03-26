@@ -1,10 +1,12 @@
 @extends('layouts.app')
-@section('title','Sarkari Naukri Blog — Results, Admit Cards, Vacancies — Naukaridarpan')
-@section('meta_desc','Latest results, admit cards, vacancies, current affairs and study tips for UPSC, SSC, Banking, Railway and State exams.')
+@php $catTitle = request('category') ? request('category').' — Sarkari Naukri Blog' : 'Sarkari Naukri Blog — Results, Admit Cards, Vacancies — Naukaridarpan'; @endphp
+@php $catDesc = request('category') ? ('Latest '.request('category').' updates, notices and tips for government exams.') : 'Latest results, admit cards, vacancies, current affairs and study tips for UPSC, SSC, Banking, Railway and State exams.'; @endphp
+@section('title',$catTitle)
+@section('meta_desc',$catDesc)
 @section('canonical', request()->fullUrl())
 @section('og_type','website')
-@section('og_title','Sarkari Naukri Blog — Naukaridarpan')
-@section('og_desc','Daily Sarkari results, admit cards, vacancies, current affairs and exam prep tips.')
+@section('og_title', request('category') ? request('category').' — Naukaridarpan Blog' : 'Sarkari Naukri Blog — Naukaridarpan')
+@section('og_desc', request('category') ? ('Latest '.request('category').' updates, notices and tips.') : 'Daily Sarkari results, admit cards, vacancies, current affairs and exam prep tips.')
 @section('json_ld')
 {!! json_encode([
   '@context' => 'https://schema.org',

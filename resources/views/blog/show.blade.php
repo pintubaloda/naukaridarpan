@@ -56,8 +56,11 @@
   <div style="display:grid;grid-template-columns:1fr 300px;gap:3rem;align-items:start;max-width:1100px;margin:0 auto">
     <article>
       <div style="margin-bottom:.75rem">
-        <a href="{{ route('blog.index') }}" style="font-size:.82rem;color:var(--ink-l)">← Blog</a>
-        <span style="color:var(--ink-l);font-size:.82rem"> / {{ $post->category }}</span>
+        <a href="{{ route('home') }}" style="font-size:.82rem;color:var(--ink-l)">Home</a>
+        <span style="color:var(--ink-l);font-size:.82rem"> / </span>
+        <a href="{{ route('blog.index') }}" style="font-size:.82rem;color:var(--ink-l)">Blog</a>
+        <span style="color:var(--ink-l);font-size:.82rem"> / </span>
+        <a href="{{ route('blog.index',['category'=>$post->category]) }}" style="font-size:.82rem;color:var(--ink-l)">{{ $post->category }}</a>
       </div>
       <span class="badge badge-saffron mb-2">{{ $post->category }}</span>
       <h1 style="font-size:2rem;line-height:1.25;margin-bottom:1rem">{{ $post->title }}</h1>
@@ -76,8 +79,15 @@
         {{ $post->excerpt }}
       </div>
       @endif
+      @php
+        $content = $post->content;
+        // add loading and alt if missing
+        $content = preg_replace('/<img(?![^>]*\bloading=)[^>]*>/i', '$0', $content);
+        $content = preg_replace('/<img(?![^>]*\bloading=)([^>]*)>/i', '<img$1 loading="lazy">', $content);
+        $content = preg_replace('/<img((?![^>]*\balt=)[^>]*)>/i', '<img$1 alt="'.e($post->title).'">', $content);
+      @endphp
       <div class="blog-content" style="line-height:1.8;font-size:1rem;color:var(--ink-m)">
-        {!! $post->content !!}
+        {!! $content !!}
       </div>
       @php $ads = \App\Models\PlatformSetting::get('blog_ads_code',''); @endphp
       @if($ads)
