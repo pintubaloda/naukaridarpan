@@ -141,6 +141,9 @@ PROMPT
 
             $clean = trim(preg_replace('/```(?:json)?\n?/', '', (string)$text), "` \n");
             $d     = json_decode($clean, true);
+            if (! is_array($d)) {
+                $d = $this->extractJson($clean);
+            }
             if (! is_array($d)) { $this->lastError = 'AI did not return valid JSON'; }
             return is_array($d) ? $d : null;
         } catch (\Exception $e) {
@@ -153,5 +156,15 @@ PROMPT
     private function normalizeGeminiModel(string $model): string
     {
         return str_starts_with($model, 'models/') ? substr($model, 7) : $model;
+    }
+
+    private function extractJson(string $text): ?array
+    {
+        $start = strpos($text, '{');
+        $end   = strrpos($text, '}');
+        if ($start === false || $end === false || $end <= $start) return null;
+        $snippet = substr($text, $start, $end - $start + 1);
+        $decoded = json_decode($snippet, true);
+        return is_array($decoded) ? $decoded : null;
     }
 }

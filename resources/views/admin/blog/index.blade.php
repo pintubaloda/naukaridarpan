@@ -9,7 +9,7 @@
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem">
         <div><h2 class="mb-1">Blog Manager</h2><p class="text-muted">Manage AI and manual blog posts</p></div>
         <div style="display:flex;gap:.5rem">
-          <button onclick="generateAI()" class="btn btn-outline btn-sm" id="ai-btn">✨ Generate AI Post</button>
+          <button onclick="openAiModal()" class="btn btn-outline btn-sm" id="ai-btn">✨ Generate AI Post</button>
           <a href="{{ route('admin.blog.create') }}" class="btn btn-primary btn-sm">+ Write Post</a>
         </div>
       </div>
@@ -45,15 +45,53 @@
     </main>
   </div>
 </div>
+<!-- AI Generate Modal -->
+<div id="ai-modal" style="position:fixed;inset:0;background:rgba(15,23,42,.35);display:none;align-items:center;justify-content:center;z-index:1000;padding:1rem">
+  <div style="background:#fff;border:1px solid var(--border);border-radius:16px;max-width:520px;width:100%;padding:1.5rem 1.75rem;box-shadow:var(--s3)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <div style="font-weight:700;font-family:var(--fu)">Generate AI Blog</div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="closeAiModal()">Close</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Topic</label>
+      <input type="text" id="ai-topic" class="form-control" placeholder="e.g. March 2026 Current Affairs Highlights">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Category</label>
+      <select id="ai-category" class="form-control">
+        @foreach(['Sarkari Result','Admit Card','Vacancy','Exam Date','Answer Key','Study Tips','Current Affairs','Historical News','Sports News','Most Important News'] as $c)
+          <option value="{{ $c }}">{{ $c }}</option>
+        @endforeach
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Language</label>
+      <select id="ai-language" class="form-control">
+        <option value="English">English</option>
+        <option value="Hindi">Hindi</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:.75rem;justify-content:flex-end;margin-top:.75rem">
+      <button type="button" class="btn btn-ghost" onclick="closeAiModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" id="ai-generate-btn" onclick="generateAI()">Generate</button>
+    </div>
+  </div>
+</div>
 @push('scripts')
 <script>
+function openAiModal(){ document.getElementById('ai-modal').style.display='flex'; }
+function closeAiModal(){ document.getElementById('ai-modal').style.display='none'; }
 async function generateAI(){
   document.getElementById('ai-status').style.display='flex';
   document.getElementById('ai-btn').disabled=true;
+  const genBtn = document.getElementById('ai-generate-btn');
+  if (genBtn) genBtn.disabled = true;
   try{
-    const topic = prompt('Enter topic for AI blog post:');
-    if (!topic) { document.getElementById('ai-status').style.display='none'; return; }
-    const category = prompt('Enter category (e.g. Current Affairs, Vacancy, Sports News):','Current Affairs') || 'Current Affairs';
+    const topic = (document.getElementById('ai-topic')?.value || '').trim();
+    const category = (document.getElementById('ai-category')?.value || 'Current Affairs');
+    const language = (document.getElementById('ai-language')?.value || 'English');
+    if (!topic) { document.getElementById('ai-status').style.display='none'; if (genBtn) genBtn.disabled=false; return; }
+    closeAiModal();
     const r=await fetch('{{ route('admin.blog.generate') }}',{
       method:'POST',
       headers:{
@@ -63,7 +101,7 @@ async function generateAI(){
         'X-Requested-With':'XMLHttpRequest'
       },
       credentials:'same-origin',
-      body:JSON.stringify({language:'English', topic, category})
+      body:JSON.stringify({language, topic, category})
     });
     const ct = r.headers.get('content-type') || '';
     if (!ct.includes('application/json')) {
@@ -82,6 +120,7 @@ async function generateAI(){
     }
   }catch(e){document.getElementById('ai-status').className='alert alert-error mb-3';document.getElementById('ai-status').textContent='Error: '+e.message;}
   document.getElementById('ai-btn').disabled=false;
+  if (genBtn) genBtn.disabled=false;
 }
 </script>
 @endpush
