@@ -119,6 +119,11 @@ btn?.addEventListener('click', async () => {
       credentials: 'same-origin',
       body: JSON.stringify({ topic, category, language })
     });
+    const ct = res.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) {
+      const text = await res.text();
+      throw new Error('Unexpected response. Please login again. ' + text.slice(0,120));
+    }
     const data = await res.json();
     if (!data.success) throw new Error(data.message || 'Failed');
     const d = data.data;
@@ -152,6 +157,11 @@ imgBtn?.addEventListener('click', async () => {
       headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
       credentials: 'same-origin'
     });
+    const ct = res.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) {
+      const text = await res.text();
+      throw new Error('Unexpected response. Please login again. ' + text.slice(0,120));
+    }
     const data = await res.json();
     if (!data.success) throw new Error(data.message || 'Failed');
     (data.items || []).forEach(item => {
@@ -176,6 +186,11 @@ imgBtn?.addEventListener('click', async () => {
           credentials: 'same-origin',
           body: JSON.stringify({ image_url: item.url })
         });
+        const ct2 = r.headers.get('content-type') || '';
+        if (!ct2.includes('application/json')) {
+          const text = await r.text();
+          throw new Error('Unexpected response. Please login again. ' + text.slice(0,120));
+        }
         const d = await r.json();
         if (d.success) {
           const input = document.querySelector('input[name="featured_image"]');

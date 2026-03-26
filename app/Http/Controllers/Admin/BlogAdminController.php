@@ -79,6 +79,9 @@ class BlogAdminController extends Controller
 
     public function generateAI(Request $r)
     {
+        if (! auth()->check() || ! auth()->user()->isAdmin()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized. Please login again.'], 401);
+        }
         $r->validate([
             'language' => 'nullable|in:English,Hindi',
             'topic'    => 'required|string|max:200',
@@ -92,6 +95,9 @@ class BlogAdminController extends Controller
 
     public function searchImages(Request $r)
     {
+        if (! auth()->check() || ! auth()->user()->isAdmin()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized. Please login again.'], 401);
+        }
         $r->validate([
             'query'  => 'required|string|max:200',
             'source' => 'required|in:google,pexels',
@@ -139,6 +145,9 @@ class BlogAdminController extends Controller
 
     public function attachImage(Request $r)
     {
+        if (! auth()->check() || ! auth()->user()->isAdmin()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized. Please login again.'], 401);
+        }
         $r->validate(['image_url' => 'required|url']);
         $url = $r->input('image_url');
         $resp = Http::timeout(60)->get($url);
