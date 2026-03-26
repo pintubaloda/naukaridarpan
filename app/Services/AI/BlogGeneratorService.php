@@ -56,10 +56,19 @@ class BlogGeneratorService
 
     private function loadTopicsFromSettings(): array
     {
-        $json = \App\Models\PlatformSetting::get('blog_topics_json', '');
-        if (! $json) return [];
-        $data = json_decode($json, true);
-        return is_array($data) ? $data : [];
+        $text = \App\Models\PlatformSetting::get('blog_topics_text', '');
+        if ($text) {
+            $map = [];
+            foreach (preg_split('/\r?\n/', $text) as $line) {
+                $line = trim($line);
+                if ($line === '' || ! str_contains($line, ':')) continue;
+                [$cat, $items] = array_map('trim', explode(':', $line, 2));
+                $topics = array_filter(array_map('trim', explode(',', $items)));
+                if ($cat && $topics) $map[$cat] = $topics;
+            }
+            if (! empty($map)) return $map;
+        }
+        return [];
     }
 
     private function callClaude(string $topic, string $lang, string $cat): ?array
@@ -88,10 +97,14 @@ Return ONLY valid JSON (no markdown, no extra text):
 PROMPT
 ;
 
+            if (PlatformSetting::get('ai_enabled', '1') !== '1') {
+                Log::warning('BlogAI disabled via settings');
+                return null;
+            }
             $provider = PlatformSetting::get('ai_provider', 'openai');
             if ($provider === 'gemini') {
                 $key   = PlatformSetting::get('gemini_api_key');
-                $model = PlatformSetting::get('gemini_model', 'gemini-1.5-flash');
+                $model = PlatformSetting::get('gemini_model', 'gemini-2.5-flash');
                 if (! $key) { Log::error('BlogAI Gemini key missing'); return null; }
                 $resp = Http::withHeaders([
                     'x-goog-api-key' => $key,
