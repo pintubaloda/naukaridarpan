@@ -109,4 +109,82 @@ class AdminController extends Controller
         \App\Jobs\SendOnboardingMailerJob::dispatch($r->lead_ids, $r->template);
         return back()->with('success', count($r->lead_ids) . ' mailers queued.');
     }
+
+    public function createPaper()
+    {
+        $categories = \App\Models\Category::where('is_active', true)->orderBy('sort_order')->get();
+        return view('admin.papers.create', compact('categories'));
+    }
+
+    public function storePaper(Request $r)
+    {
+        $r->validate([
+            'title'           => 'required|string|max:255',
+            'subject'         => 'nullable|string|max:255',
+            'category_id'     => 'required|exists:categories,id',
+            'description'     => 'nullable|string|max:2000',
+            'language'        => 'required|in:English,Hindi,Both',
+            'duration_minutes'=> 'required|integer|min:10|max:360',
+            'max_marks'       => 'required|integer|min:10',
+            'negative_marking'=> 'nullable|numeric|min:0|max:1',
+            'max_retakes'     => 'required|integer|min:1|max:10',
+            'difficulty'      => 'required|in:easy,medium,hard',
+            'seller_price'    => 'required|numeric|min:0',
+            'is_free'         => 'boolean',
+            'tags'            => 'nullable|string',
+            'input_type'      => 'required|in:pdf,url,typed',
+            'pdf_file'        => 'required_if:input_type,pdf|file|mimes:pdf|max:51200',
+            'pdf_url'         => 'required_if:input_type,url|nullable|url',
+            'typed_content'   => 'required_if:input_type,typed|nullable|string',
+            'publish_now'     => 'nullable|boolean',
+        ]);
+
+        $markupPct    = (float) \App\Models\PlatformSetting::get('default_commission', 15);
+        $sellerPrice  = (float) $r->seller_price;
+        $markup       = round($sellerPrice * $markupPct / 100, 2);
+        $studentPrice = $sellerPrice + $markup;
+
+        $paper = \App\Models\ExamPaper::create([
+            'seller_id'        => auth()->id(),
+            'category_id'      => $r->category_id,
+            'title'            => $r->title,
+            'subject'          => $r->subject,
+            'slug'             => \Illuminate\Support\Str::slug($r->title) . '-' . \Illuminate\Support\Str::random(5),
+            'description'      => $r->description,
+            'language'         => $r->language,
+            'source'           => $r->input_type === 'typed' ? 'typed' : ($r->input_type === 'url' ? 'upload' : 'upload'),
+            'duration_minutes' => $r->duration_minutes,
+            'max_marks'        => $r->max_marks,
+            'negative_marking' => $r->negative_marking ?? 0,
+            'max_retakes'      => $r->max_retakes,
+            'difficulty'       => $r->difficulty,
+            'seller_price'     => $sellerPrice,
+            'platform_markup'  => $markup,
+            'student_price'    => $r->boolean('is_free') ? 0 : $studentPrice,
+            'is_free'          => $r->boolean('is_free'),
+            'tags'             => $r->tags ? array_map('trim', explode(',', $r->tags)) : [],
+            'status'           => $r->boolean('publish_now') ? 'approved' : 'draft',
+            'parse_status'     => 'pending',
+        ]);
+
+        $disk = config('filesystems.default', 'local');
+        if ($r->input_type === 'pdf' && $r->hasFile('pdf_file')) {
+            $path = $r->file('pdf_file')->store("papers/{$paper->id}", $disk);
+            $paper->update(['original_file' => $path]);
+            \App\Jobs\ParseExamPaperJob::dispatch($paper, 'pdf');
+        } elseif ($r->input_type === 'url' && $r->pdf_url) {
+            $resp = \Illuminate\Support\Facades\Http::timeout(60)->get($r->pdf_url);
+            if (! $resp->successful()) {
+                return back()->withErrors(['pdf_url' => 'Failed to download PDF from URL.'])->withInput();
+            }
+            $path = "papers/{$paper->id}/" . \Illuminate\Support\Str::uuid() . '.pdf';
+            \Illuminate\Support\Facades\Storage::disk($disk)->put($path, $resp->body());
+            $paper->update(['original_file' => $path]);
+            \App\Jobs\ParseExamPaperJob::dispatch($paper, 'pdf');
+        } elseif ($r->input_type === 'typed' && $r->typed_content) {
+            \App\Jobs\ParseExamPaperJob::dispatch($paper, 'typed', $r->typed_content);
+        }
+
+        return redirect()->route('admin.papers.create')->with('success', 'Paper created. Parsing started.');
+    }
 }
