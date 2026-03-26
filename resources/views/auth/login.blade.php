@@ -1,5 +1,6 @@
 @extends('layouts.app')
 @section('title','Login — Naukaridarpan')
+@section('meta_robots','noindex,nofollow')
 @section('content')
 <div class="auth-wrap">
   <div class="auth-card">
@@ -17,7 +18,7 @@
     <div class="alert alert-info">{{ session('status') }}</div>
     @endif
 
-    <form action="{{ route('login') }}" method="POST">
+    <form action="{{ url('/login') }}" method="POST" id="login-form">
       @csrf
       <div class="form-group">
         <label class="form-label">Email Address</label>
@@ -33,7 +34,7 @@
       <div class="form-group">
         <label class="form-check"><input type="checkbox" name="remember"> <span style="font-size:.88rem;color:var(--ink-m)">Remember me for 30 days</span></label>
       </div>
-      <button type="submit" class="btn btn-primary btn-block btn-lg">Sign In</button>
+      <button type="button" class="btn btn-primary btn-block btn-lg" id="login-submit">Sign In</button>
     </form>
 
     <div class="auth-divider">or</div>
@@ -47,4 +48,13 @@
     </div>
   </div>
 </div>
+@push('scripts')
+<script>
+  const loginForm = document.getElementById('login-form');
+  const loginBtn = document.getElementById('login-submit');
+  if (loginBtn && loginForm) {
+    loginBtn.addEventListener('click', () => loginForm.requestSubmit());
+  }
+</script>
+@endpush
 @endsection
