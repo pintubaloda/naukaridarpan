@@ -113,7 +113,8 @@ btn?.addEventListener('click', async () => {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || document.querySelector('input[name="_token"]').value,
+        'X-Requested-With': 'XMLHttpRequest'
       },
       credentials: 'same-origin',
       body: JSON.stringify({ topic, category, language })
@@ -148,7 +149,7 @@ imgBtn?.addEventListener('click', async () => {
   imgResults.innerHTML = '';
   try {
     const res = await fetch(`{{ route('admin.blog.images.search') }}?query=${encodeURIComponent(q)}&source=${source}`, {
-      headers: { 'Accept': 'application/json' },
+      headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
       credentials: 'same-origin'
     });
     const data = await res.json();
@@ -169,7 +170,8 @@ imgBtn?.addEventListener('click', async () => {
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || document.querySelector('input[name="_token"]').value,
+            'X-Requested-With': 'XMLHttpRequest'
           },
           credentials: 'same-origin',
           body: JSON.stringify({ image_url: item.url })
