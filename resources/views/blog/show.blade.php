@@ -1,6 +1,56 @@
 @extends('layouts.app')
 @section('title', $post->meta_title ?: $post->title.' — Naukaridarpan Blog')
-@section('meta_desc', $post->meta_description ?: $post->excerpt)
+@section('meta_desc', $post->meta_description ?: ($post->excerpt ?: Str::limit(strip_tags($post->content), 160)))
+@section('canonical', route('blog.show',$post->slug))
+@section('og_type','article')
+@section('og_title', $post->meta_title ?: $post->title)
+@section('og_desc', $post->meta_description ?: ($post->excerpt ?: Str::limit(strip_tags($post->content), 160)))
+@if($post->featured_image)
+@section('og_image', $post->featured_image)
+@endif
+@php
+  $jsonLd = [
+    [
+      '@context' => 'https://schema.org',
+      '@type' => 'Article',
+      'mainEntityOfPage' => ['@type' => 'WebPage', '@id' => route('blog.show',$post->slug)],
+      'headline' => $post->title,
+      'description' => $post->meta_description ?: ($post->excerpt ?: Str::limit(strip_tags($post->content), 160)),
+      'image' => $post->featured_image ? [$post->featured_image] : null,
+      'author' => ['@type' => 'Organization', 'name' => 'Naukaridarpan'],
+      'publisher' => ['@type' => 'Organization', 'name' => 'Naukaridarpan'],
+      'datePublished' => optional($post->published_at)->toAtomString(),
+      'dateModified' => optional($post->updated_at)->toAtomString(),
+    ],
+    [
+      '@context' => 'https://schema.org',
+      '@type' => 'BreadcrumbList',
+      'itemListElement' => [
+        [
+          '@type' => 'ListItem',
+          'position' => 1,
+          'name' => 'Home',
+          'item' => route('home'),
+        ],
+        [
+          '@type' => 'ListItem',
+          'position' => 2,
+          'name' => 'Blog',
+          'item' => route('blog.index'),
+        ],
+        [
+          '@type' => 'ListItem',
+          'position' => 3,
+          'name' => $post->title,
+          'item' => route('blog.show', $post->slug),
+        ],
+      ],
+    ],
+  ];
+@endphp
+@section('json_ld')
+{!! json_encode($jsonLd, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) !!}
+@endsection
 @section('content')
 <div class="container" style="padding:2rem 1.25rem 4rem">
   <div style="display:grid;grid-template-columns:1fr 300px;gap:3rem;align-items:start;max-width:1100px;margin:0 auto">
@@ -13,7 +63,7 @@
       <h1 style="font-size:2rem;line-height:1.25;margin-bottom:1rem">{{ $post->title }}</h1>
       @if($post->featured_image)
       <div style="margin:0 0 1.5rem;border-radius:var(--r2);overflow:hidden">
-        <img src="{{ $post->featured_image }}" alt="{{ $post->title }}" style="width:100%;height:auto;display:block">
+        <img src="{{ $post->featured_image }}" alt="{{ $post->title }}" loading="lazy" style="width:100%;height:auto;display:block">
       </div>
       @endif
       <div style="display:flex;align-items:center;gap:1rem;font-size:.82rem;color:var(--ink-l);font-family:var(--fu);margin-bottom:2rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border)">

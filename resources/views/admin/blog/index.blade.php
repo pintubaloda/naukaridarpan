@@ -1,5 +1,6 @@
 @extends('layouts.app')
 @section('title','Blog Manager — Admin')
+@section('meta_robots','noindex,nofollow')
 @section('content')
 <div class="container section">
   <div class="dash-layout">
@@ -71,8 +72,9 @@ async function generateAI(){
     }
     const d=await r.json();
     if(d.success){
-      document.getElementById('ai-status-text').textContent='✓ Draft generated (provider: '+(d.provider||'')+'). Open Create page to review.';
+      document.getElementById('ai-status-text').textContent='✓ Draft saved. Opening editor...';
       document.getElementById('ai-spinner').style.display='none';
+      if (d.edit_url) { window.location.href = d.edit_url; return; }
     } else {
       document.getElementById('ai-status').className='alert alert-error mb-3';
       document.getElementById('ai-status-text').textContent='Generation failed: '+d.message;

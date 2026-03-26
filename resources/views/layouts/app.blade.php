@@ -6,6 +6,31 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <title>@yield('title', "Naukaridarpan — India's #1 Mock Test Marketplace")</title>
 <meta name="description" content="@yield('meta_desc', 'Buy mock tests for UPSC, SSC, Banking, Railway from verified educators. Secure exam, instant results.')">
+<meta name="robots" content="@yield('meta_robots','index,follow')">
+<link rel="canonical" href="@yield('canonical', request()->fullUrl())">
+@php $ogTitle = trim($__env->yieldContent('og_title')); @endphp
+@php $ogDesc = trim($__env->yieldContent('og_desc')); @endphp
+@php $ogImage = trim($__env->yieldContent('og_image')); @endphp
+@php $ogType = trim($__env->yieldContent('og_type')); @endphp
+<meta property="og:title" content="{{ $ogTitle ?: trim($__env->yieldContent('title','Naukaridarpan')) }}">
+<meta property="og:description" content="{{ $ogDesc ?: trim($__env->yieldContent('meta_desc','Buy mock tests for UPSC, SSC, Banking, Railway from verified educators. Secure exam, instant results.')) }}">
+<meta property="og:url" content="@yield('canonical', request()->fullUrl())">
+<meta property="og:type" content="{{ $ogType ?: 'website' }}">
+@if($ogImage)
+<meta property="og:image" content="{{ $ogImage }}">
+<meta property="og:image:alt" content="{{ $ogTitle ?: 'Naukaridarpan' }}">
+@endif
+<meta name="twitter:card" content="{{ $ogImage ? 'summary_large_image' : 'summary' }}">
+<meta name="twitter:title" content="{{ $ogTitle ?: trim($__env->yieldContent('title','Naukaridarpan')) }}">
+<meta name="twitter:description" content="{{ $ogDesc ?: trim($__env->yieldContent('meta_desc','Buy mock tests for UPSC, SSC, Banking, Railway from verified educators. Secure exam, instant results.')) }}">
+@if($ogImage)
+<meta name="twitter:image" content="{{ $ogImage }}">
+@endif
+@hasSection('json_ld')
+<script type="application/ld+json">
+@yield('json_ld')
+</script>
+@endif
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Tiro+Devanagari+Hindi:ital@0;1&family=Hind:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">

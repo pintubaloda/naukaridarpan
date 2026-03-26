@@ -1,5 +1,6 @@
 @extends('layouts.app')
 @section('title','Edit Post — Admin')
+@section('meta_robots','noindex,nofollow')
 @section('content')
 <div class="container section" style="max-width:860px">
   <div style="margin-bottom:1.5rem"><a href="{{ route('admin.blog.index') }}" style="font-size:.85rem;color:var(--ink-l)">← Blog Manager</a><h2 class="mt-1">Edit Post</h2></div>

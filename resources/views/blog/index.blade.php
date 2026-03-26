@@ -1,5 +1,20 @@
 @extends('layouts.app')
 @section('title','Sarkari Naukri Blog — Results, Admit Cards, Vacancies — Naukaridarpan')
+@section('meta_desc','Latest results, admit cards, vacancies, current affairs and study tips for UPSC, SSC, Banking, Railway and State exams.')
+@section('canonical', request()->fullUrl())
+@section('og_type','website')
+@section('og_title','Sarkari Naukri Blog — Naukaridarpan')
+@section('og_desc','Daily Sarkari results, admit cards, vacancies, current affairs and exam prep tips.')
+@section('json_ld')
+{!! json_encode([
+  '@context' => 'https://schema.org',
+  '@type' => 'Blog',
+  'name' => 'Sarkari Naukri Blog',
+  'url' => route('blog.index'),
+  'description' => 'Daily Sarkari results, admit cards, vacancies, current affairs and exam prep tips.',
+  'publisher' => ['@type' => 'Organization', 'name' => 'Naukaridarpan'],
+], JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) !!}
+@endsection
 @section('content')
 <div class="container" style="padding:2rem 1.25rem 4rem">
   {{-- Header --}}
@@ -53,7 +68,7 @@
       <div class="card blog-card" style="height:100%">
       <div class="blog-thumb" style="background:var(--teal-l);display:flex;align-items:center;justify-content:center;font-size:2rem;overflow:hidden">
           @if($post->featured_image)
-            <img src="{{ $post->featured_image }}" alt="{{ $post->title }}" style="width:100%;height:100%;object-fit:cover">
+            <img src="{{ $post->featured_image }}" alt="{{ $post->title }}" loading="lazy" style="width:100%;height:100%;object-fit:cover">
           @else
             @php $icons=['Sarkari Result'=>'📋','Admit Card'=>'🪪','Vacancy'=>'💼','Exam Date'=>'📅','Answer Key'=>'🔑','Study Tips'=>'📚','Current Affairs'=>'📰','Historical News'=>'🏛️','Sports News'=>'🏅','Most Important News'=>'🗞️']; @endphp
             {{ $icons[$post->category] ?? '📝' }}
