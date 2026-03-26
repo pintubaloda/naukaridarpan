@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 class BlogGeneratorService
 {
     private string $apiUrl = 'https://api.anthropic.com/v1/messages';
+    public ?string $lastError = null;
 
     private array $topics = [
         'Sarkari Result'  => ['SSC CGL Result 2025','UPSC Final Result 2025','RRB NTPC Result','IBPS PO Result','SBI Clerk Result','State PSC Result'],
@@ -23,6 +24,7 @@ class BlogGeneratorService
 
     public function generateDailyPost(string $lang = 'English', ?string $forcedTopic = null, ?string $forcedCategory = null): ?BlogPost
     {
+        $this->lastError = null;
         $topics = $this->loadTopicsFromSettings() ?: $this->topics;
         if ($forcedTopic && $forcedCategory) {
             $cat = $forcedCategory;
@@ -50,6 +52,7 @@ class BlogGeneratorService
 
     public function generateDraft(string $topic, string $lang, string $cat): ?array
     {
+        $this->lastError = null;
         $data = $this->callClaude("$topic — " . now()->format('F Y'), $lang, $cat);
         return is_array($data) ? $data : null;
     }
@@ -98,14 +101,15 @@ PROMPT
 ;
 
             if (PlatformSetting::get('ai_enabled', '1') !== '1') {
+                $this->lastError = 'AI disabled in settings';
                 Log::warning('BlogAI disabled via settings');
                 return null;
             }
             $provider = PlatformSetting::get('ai_provider', 'openai');
             if ($provider === 'gemini') {
                 $key   = PlatformSetting::get('gemini_api_key');
-                $model = PlatformSetting::get('gemini_model', 'gemini-2.5-flash');
-                if (! $key) { Log::error('BlogAI Gemini key missing'); return null; }
+                $model = $this->normalizeGeminiModel(PlatformSetting::get('gemini_model', 'gemini-2.5-flash'));
+                if (! $key) { $this->lastError = 'Gemini API key missing'; Log::error('BlogAI Gemini key missing'); return null; }
                 $resp = Http::withHeaders([
                     'x-goog-api-key' => $key,
                     'content-type'  => 'application/json',
@@ -114,12 +118,12 @@ PROMPT
                         'parts' => [[ 'text' => $prompt ]],
                     ]],
                 ]);
-                if (! $resp->successful()) { Log::error('BlogAI Gemini HTTP error ' . $resp->status()); return null; }
+                if (! $resp->successful()) { $this->lastError = 'Gemini HTTP ' . $resp->status(); Log::error('BlogAI Gemini HTTP error ' . $resp->status()); return null; }
                 $text = $resp->json('candidates.0.content.parts.0.text') ?? '';
             } else {
                 $key   = PlatformSetting::get('openai_api_key');
                 $model = PlatformSetting::get('openai_model', 'gpt-4o-mini');
-                if (! $key) { Log::error('BlogAI OpenAI key missing'); return null; }
+                if (! $key) { $this->lastError = 'OpenAI API key missing'; Log::error('BlogAI OpenAI key missing'); return null; }
                 $resp = Http::withHeaders([
                     'Authorization' => 'Bearer ' . $key,
                     'Content-Type'  => 'application/json',
@@ -131,16 +135,23 @@ PROMPT
                     ],
                     'temperature' => 0.7,
                 ]);
-                if (! $resp->successful()) { Log::error('BlogAI OpenAI HTTP error ' . $resp->status()); return null; }
+                if (! $resp->successful()) { $this->lastError = 'OpenAI HTTP ' . $resp->status(); Log::error('BlogAI OpenAI HTTP error ' . $resp->status()); return null; }
                 $text = $resp->json('choices.0.message.content') ?? '';
             }
 
             $clean = trim(preg_replace('/```(?:json)?\n?/', '', (string)$text), "` \n");
             $d     = json_decode($clean, true);
+            if (! is_array($d)) { $this->lastError = 'AI did not return valid JSON'; }
             return is_array($d) ? $d : null;
         } catch (\Exception $e) {
+            $this->lastError = $e->getMessage();
             Log::error('BlogAI exception: ' . $e->getMessage());
             return null;
         }
+    }
+
+    private function normalizeGeminiModel(string $model): string
+    {
+        return str_starts_with($model, 'models/') ? substr($model, 7) : $model;
     }
 }

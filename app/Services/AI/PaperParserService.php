@@ -31,7 +31,7 @@ class PaperParserService
             $disk = config('filesystems.default', 'local');
             $b64  = base64_encode(Storage::disk($disk)->get($paper->original_file));
             $key  = PlatformSetting::get('gemini_api_key');
-            $model= PlatformSetting::get('gemini_model', 'gemini-1.5-flash');
+            $model= $this->normalizeGeminiModel(PlatformSetting::get('gemini_model', 'gemini-2.5-flash'));
             if (! $key) return $this->fail($paper, 'Gemini API key missing.');
             $resp = Http::withHeaders([
                 'x-goog-api-key' => $key,
@@ -57,7 +57,7 @@ class PaperParserService
             $provider = PlatformSetting::get('ai_provider', 'openai');
             if ($provider === 'gemini') {
                 $key   = PlatformSetting::get('gemini_api_key');
-                $model = PlatformSetting::get('gemini_model', 'gemini-1.5-flash');
+                $model = $this->normalizeGeminiModel(PlatformSetting::get('gemini_model', 'gemini-2.5-flash'));
                 if (! $key) return $this->fail($paper, 'Gemini API key missing.');
                 $resp = Http::withHeaders([
                     'x-goog-api-key' => $key,
@@ -99,7 +99,7 @@ class PaperParserService
                 return $this->fail($paper, 'PDF parsing requires Gemini. Switch AI provider to Gemini in admin settings.');
             }
             $key  = PlatformSetting::get('gemini_api_key');
-            $model= PlatformSetting::get('gemini_model', 'gemini-1.5-flash');
+            $model= $this->normalizeGeminiModel(PlatformSetting::get('gemini_model', 'gemini-2.5-flash'));
             if (! $key) return $this->fail($paper, 'Gemini API key missing.');
             $ai   = Http::withHeaders([
                 'x-goog-api-key' => $key,
@@ -158,6 +158,11 @@ class PaperParserService
             'max_marks'       => $parsed['total_marks']      ?? $paper->max_marks,
         ]);
         return $parsed;
+    }
+
+    private function normalizeGeminiModel(string $model): string
+    {
+        return str_starts_with($model, 'models/') ? substr($model, 7) : $model;
     }
 
     private function fail(ExamPaper $paper, string $msg): array

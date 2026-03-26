@@ -13,7 +13,10 @@
         </div>
       </div>
       @if(session('success'))<div class="alert alert-success mb-3">{{ session('success') }}</div>@endif
-      <div id="ai-status" style="display:none" class="alert alert-info mb-3">Generating AI post… please wait.</div>
+      <div id="ai-status" style="display:none" class="alert alert-info mb-3">
+        <span id="ai-status-text">Generating AI post… please wait.</span>
+        <span id="ai-spinner" style="margin-left:.5rem">⏳</span>
+      </div>
       <div class="tbl-wrap">
         <table class="tbl">
           <thead><tr><th>Title</th><th>Category</th><th>Status</th><th>Source</th><th>Views</th><th>Date</th><th></th></tr></thead>
@@ -68,10 +71,12 @@ async function generateAI(){
     }
     const d=await r.json();
     if(d.success){
-      document.getElementById('ai-status').textContent='✓ Draft generated. Open Create page to review.';
+      document.getElementById('ai-status-text').textContent='✓ Draft generated (provider: '+(d.provider||'')+'). Open Create page to review.';
+      document.getElementById('ai-spinner').style.display='none';
     } else {
       document.getElementById('ai-status').className='alert alert-error mb-3';
-      document.getElementById('ai-status').textContent='Generation failed: '+d.message;
+      document.getElementById('ai-status-text').textContent='Generation failed: '+d.message;
+      document.getElementById('ai-spinner').style.display='none';
     }
   }catch(e){document.getElementById('ai-status').className='alert alert-error mb-3';document.getElementById('ai-status').textContent='Error: '+e.message;}
   document.getElementById('ai-btn').disabled=false;

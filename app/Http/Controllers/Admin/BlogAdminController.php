@@ -89,8 +89,9 @@ class BlogAdminController extends Controller
         ]);
         $service = app(BlogGeneratorService::class);
         $data    = $service->generateDraft($r->topic, $r->language ?? 'English', $r->category);
-        if ($data) return response()->json(['success' => true, 'data' => $data]);
-        return response()->json(['success' => false, 'message' => 'AI generation failed. Check API key.'], 500);
+        if ($data) return response()->json(['success' => true, 'data' => $data, 'provider' => \App\Models\PlatformSetting::get('ai_provider','openai')]);
+        $msg = $service->lastError ?: 'AI generation failed. Check API key.';
+        return response()->json(['success' => false, 'message' => $msg], 500);
     }
 
     public function searchImages(Request $r)
