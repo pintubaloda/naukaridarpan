@@ -34,7 +34,7 @@
       <div class="form-group">
         <label class="form-check"><input type="checkbox" name="remember"> <span style="font-size:.88rem;color:var(--ink-m)">Remember me for 30 days</span></label>
       </div>
-      <button type="button" class="btn btn-primary btn-block btn-lg" id="login-submit">Sign In</button>
+      <button type="submit" class="btn btn-primary btn-block btn-lg" id="login-submit" onclick="document.getElementById('login-form').submit()">Sign In</button>
     </form>
 
     <div class="auth-divider">or</div>
@@ -48,13 +48,4 @@
     </div>
   </div>
 </div>
-@push('scripts')
-<script>
-  const loginForm = document.getElementById('login-form');
-  const loginBtn = document.getElementById('login-submit');
-  if (loginBtn && loginForm) {
-    loginBtn.addEventListener('click', () => loginForm.requestSubmit());
-  }
-</script>
-@endpush
 @endsection
