@@ -167,7 +167,7 @@ class AdminController extends Controller
             'parse_status'     => 'pending',
         ]);
 
-        $disk = config('filesystems.default', 'local');
+        $disk = 'public';
         if ($r->input_type === 'pdf' && $r->hasFile('pdf_file')) {
             $path = $r->file('pdf_file')->store("papers/{$paper->id}", $disk);
             $paper->update(['original_file' => $path]);

@@ -28,7 +28,7 @@ class PaperParserService
             if ($provider !== 'gemini') {
                 return $this->fail($paper, 'PDF parsing requires Gemini. Switch AI provider to Gemini in admin settings.');
             }
-            $disk = config('filesystems.default', 'local');
+            $disk = 'public';
             $b64  = base64_encode(Storage::disk($disk)->get($paper->original_file));
             $key  = PlatformSetting::get('gemini_api_key');
             $model= $this->normalizeGeminiModel(PlatformSetting::get('gemini_model', 'gemini-2.5-flash'));
