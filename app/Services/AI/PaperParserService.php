@@ -23,7 +23,8 @@ class PaperParserService
     {
         $paper->update(['parse_status' => 'processing', 'parse_log' => 'Reading PDF…']);
         try {
-            $b64  = base64_encode(Storage::disk('s3')->get($paper->original_file));
+            $disk = config('filesystems.default', 'local');
+            $b64  = base64_encode(Storage::disk($disk)->get($paper->original_file));
             $resp = Http::withHeaders($this->headers())->timeout(180)->post($this->apiUrl, [
                 'model'      => config('services.anthropic.model', 'claude-sonnet-4-20250514'),
                 'max_tokens' => 8000,
@@ -51,6 +52,30 @@ class PaperParserService
                 'messages'   => [['role' => 'user', 'content' => $this->prompt() . "\n\nCONTENT:\n" . $raw]],
             ]);
             return $this->handleResponse($paper, $resp);
+        } catch (\Exception $e) {
+            return $this->fail($paper, $e->getMessage());
+        }
+    }
+
+    public function parseUrl(ExamPaper $paper, string $url): array
+    {
+        $paper->update(['parse_status' => 'processing', 'parse_log' => 'Fetching PDF from URL…']);
+        try {
+            $resp = Http::timeout(60)->get($url);
+            if (! $resp->successful()) return $this->fail($paper, 'Failed to download PDF: ' . $resp->status());
+            $b64  = base64_encode($resp->body());
+            $ai   = Http::withHeaders($this->headers())->timeout(180)->post($this->apiUrl, [
+                'model'      => config('services.anthropic.model', 'claude-sonnet-4-20250514'),
+                'max_tokens' => 8000,
+                'messages'   => [[
+                    'role'    => 'user',
+                    'content' => [
+                        ['type' => 'document', 'source' => ['type' => 'base64', 'media_type' => 'application/pdf', 'data' => $b64]],
+                        ['type' => 'text', 'text' => $this->prompt()],
+                    ],
+                ]],
+            ]);
+            return $this->handleResponse($paper, $ai);
         } catch (\Exception $e) {
             return $this->fail($paper, $e->getMessage());
         }

@@ -12,7 +12,19 @@
         @foreach([
           ['payment','Payment & Settlement',[['default_commission','Platform Commission (%)','15','Percentage deducted from each sale'],['min_payout_threshold','Min Payout Amount (₹)','500','Minimum balance required to request payout'],['settlement_hours','Settlement Hold (hours)','48','Hours to hold payment before releasing to seller wallet']]],
           ['general','General',[['platform_name','Platform Name','Naukaridarpan',''],['platform_email','Support Email','support@naukaridarpan.com',''],['platform_phone','Support Phone','+91-9876543210','']]],
+          ['ai','AI Providers',[
+            ['ai_provider','Active AI Provider','openai','openai or gemini'],
+            ['openai_api_key','OpenAI API Key','','Stored in DB; keep private'],
+            ['openai_model','OpenAI Model','gpt-4o-mini','Example: gpt-4o-mini'],
+            ['gemini_api_key','Gemini API Key','','Stored in DB; keep private'],
+            ['gemini_model','Gemini Model','gemini-1.5-flash','Example: gemini-1.5-flash'],
+          ]],
           ['blog','AI Blog',[['auto_blog_enabled','Auto Blog Enabled (1=yes, 0=no)','1',''],['auto_blog_language','Blog Language','English','English or Hindi']]],
+          ['scraper','Scraper AI',[
+            ['scraper_ai_enabled','Scraper AI Enabled (1=yes, 0=no)','0',''],
+            ['scraper_ai_provider','Scraper AI Provider','openai','openai or gemini'],
+            ['scraper_ai_model','Scraper AI Model','gpt-4o-mini','Example: gpt-4o-mini / gemini-1.5-flash'],
+          ]],
           ['upload','Uploads',[['max_upload_size_mb','Max PDF Upload Size (MB)','50','']]],
         ] as [$group,$heading,$fields])
         <div class="card card-static mb-3">

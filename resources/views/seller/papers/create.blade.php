@@ -29,6 +29,10 @@
             <label class="form-label">Exam Title <span style="color:var(--err)">*</span></label>
             <input type="text" name="title" class="form-control" value="{{ old('title') }}" placeholder="e.g. SSC CGL 2024 Tier-1 Mock Test — Set 3" required>
           </div>
+          <div class="form-group">
+            <label class="form-label">Subject</label>
+            <input type="text" name="subject" class="form-control" value="{{ old('subject') }}" placeholder="e.g. Polity, Quant, Reasoning, Current Affairs">
+          </div>
           <div class="g-grid" style="grid-template-columns:1fr 1fr;gap:.75rem">
             <div class="form-group" style="margin:0">
               <label class="form-label">Category <span style="color:var(--err)">*</span></label>
@@ -100,7 +104,7 @@
       <div class="card card-static mb-3">
         <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border-l);font-weight:600;font-family:var(--fu)">3. Paper Content</div>
         <div class="card-body">
-          <div style="display:flex;gap:1rem;margin-bottom:1.25rem">
+          <div style="display:flex;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap">
             <label style="flex:1;cursor:pointer">
               <input type="radio" name="input_type" value="pdf" {{ old('input_type','pdf')=='pdf'?'checked':'' }} onchange="switchInput(this.value)" style="display:none" id="radio-pdf">
               <div class="method-card" id="mc-pdf" style="border:2px solid var(--saffron);border-radius:var(--r2);padding:1rem;text-align:center;transition:all .15s">
@@ -115,6 +119,14 @@
                 <div style="font-size:1.8rem;margin-bottom:.4rem">⌨️</div>
                 <div style="font-weight:600;font-size:.9rem;font-family:var(--fu)">Type Questions</div>
                 <div style="font-size:.78rem;color:var(--ink-l);margin-top:.2rem">Enter questions manually with our editor</div>
+              </div>
+            </label>
+            <label style="flex:1;cursor:pointer">
+              <input type="radio" name="input_type" value="url" {{ old('input_type')=='url'?'checked':'' }} onchange="switchInput(this.value)" style="display:none" id="radio-url">
+              <div class="method-card" id="mc-url" style="border:2px solid var(--border);border-radius:var(--r2);padding:1rem;text-align:center;transition:all .15s">
+                <div style="font-size:1.8rem;margin-bottom:.4rem">🔗</div>
+                <div style="font-weight:600;font-size:.9rem;font-family:var(--fu)">Paste PDF URL</div>
+                <div style="font-size:.78rem;color:var(--ink-l);margin-top:.2rem">We’ll fetch and parse it</div>
               </div>
             </label>
           </div>
@@ -138,6 +150,15 @@
           <div id="typed-section" style="display:none">
             <div class="alert alert-info mb-2" style="font-size:.85rem">Paste or type your questions below. Use this format:<br><code style="font-size:.8rem">Q1. What is the capital of India?<br>A. Mumbai B. Delhi C. Kolkata D. Chennai<br>Answer: B</code></div>
             <textarea name="typed_content" class="form-control" rows="14" placeholder="Paste your questions here…&#10;&#10;Q1. Question text&#10;A. Option 1&#10;B. Option 2&#10;C. Option 3&#10;D. Option 4&#10;Answer: A&#10;&#10;Q2. Next question…">{{ old('typed_content') }}</textarea>
+          </div>
+
+          {{-- PDF URL --}}
+          <div id="url-section" style="display:none">
+            <div class="form-group">
+              <label class="form-label">PDF URL</label>
+              <input type="url" name="pdf_url" class="form-control" value="{{ old('pdf_url') }}" placeholder="https://example.com/paper.pdf">
+              <div class="form-hint">Publicly accessible PDF link. We’ll download and parse it.</div>
+            </div>
           </div>
         </div>
       </div>
@@ -182,8 +203,10 @@
 function switchInput(val){
   document.getElementById('pdf-section').style.display = val==='pdf'?'block':'none';
   document.getElementById('typed-section').style.display = val==='typed'?'block':'none';
+  document.getElementById('url-section').style.display = val==='url'?'block':'none';
   document.getElementById('mc-pdf').style.borderColor  = val==='pdf' ? 'var(--saffron)':'var(--border)';
   document.getElementById('mc-typed').style.borderColor= val==='typed'? 'var(--saffron)':'var(--border)';
+  document.getElementById('mc-url').style.borderColor  = val==='url' ? 'var(--saffron)':'var(--border)';
 }
 
 function fileChosen(input){

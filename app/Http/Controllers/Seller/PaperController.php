@@ -29,6 +29,7 @@ class PaperController extends Controller
     {
         $r->validate([
             'title'           => 'required|string|max:255',
+            'subject'         => 'nullable|string|max:255',
             'category_id'     => 'required|exists:categories,id',
             'description'     => 'nullable|string|max:2000',
             'language'        => 'required|in:English,Hindi,Both',
@@ -40,8 +41,9 @@ class PaperController extends Controller
             'seller_price'    => 'required|numeric|min:0',
             'is_free'         => 'boolean',
             'tags'            => 'nullable|string',
-            'input_type'      => 'required|in:pdf,typed',
+            'input_type'      => 'required|in:pdf,typed,url',
             'pdf_file'        => 'required_if:input_type,pdf|file|mimes:pdf|max:51200',
+            'pdf_url'         => 'required_if:input_type,url|nullable|url',
             'typed_content'   => 'required_if:input_type,typed|nullable|string',
         ]);
 
@@ -55,6 +57,7 @@ class PaperController extends Controller
             'seller_id'        => auth()->id(),
             'category_id'      => $r->category_id,
             'title'            => $r->title,
+            'subject'          => $r->subject,
             'slug'             => Str::slug($r->title) . '-' . Str::random(5),
             'description'      => $r->description,
             'language'         => $r->language,
@@ -74,10 +77,20 @@ class PaperController extends Controller
         ]);
 
         // Handle file upload
+        $disk = config('filesystems.default', 'local');
         if ($r->input_type === 'pdf' && $r->hasFile('pdf_file')) {
-            $path = $r->file('pdf_file')->store("papers/{$paper->id}", 's3');
+            $path = $r->file('pdf_file')->store("papers/{$paper->id}", $disk);
             $paper->update(['original_file' => $path]);
             // Dispatch background job to parse PDF via Claude API
+            ParseExamPaperJob::dispatch($paper, 'pdf');
+        } elseif ($r->input_type === 'url' && $r->pdf_url) {
+            $resp = \Illuminate\Support\Facades\Http::timeout(60)->get($r->pdf_url);
+            if (! $resp->successful()) {
+                return back()->withErrors(['pdf_url' => 'Failed to download PDF from URL.'])->withInput();
+            }
+            $path = "papers/{$paper->id}/" . Str::uuid() . '.pdf';
+            \Illuminate\Support\Facades\Storage::disk($disk)->put($path, $resp->body());
+            $paper->update(['original_file' => $path, 'source' => 'upload']);
             ParseExamPaperJob::dispatch($paper, 'pdf');
         } elseif ($r->input_type === 'typed' && $r->typed_content) {
             ParseExamPaperJob::dispatch($paper, 'typed', $r->typed_content);
@@ -99,6 +112,7 @@ class PaperController extends Controller
         abort_if($paper->seller_id !== auth()->id(), 403);
         $r->validate([
             'title'           => 'required|string|max:255',
+            'subject'         => 'nullable|string|max:255',
             'description'     => 'nullable|string|max:2000',
             'seller_price'    => 'required|numeric|min:0',
             'duration_minutes'=> 'required|integer|min:10',
@@ -114,6 +128,7 @@ class PaperController extends Controller
 
         $paper->update([
             'title'            => $r->title,
+            'subject'          => $r->subject,
             'description'      => $r->description,
             'duration_minutes' => $r->duration_minutes,
             'max_marks'        => $r->max_marks,

@@ -20,6 +20,7 @@
       <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border-l);font-weight:600;font-family:var(--fu)">Basic Information</div>
       <div class="card-body">
         <div class="form-group"><label class="form-label">Title *</label><input type="text" name="title" class="form-control" value="{{ old('title',$paper->title) }}" required></div>
+        <div class="form-group"><label class="form-label">Subject</label><input type="text" name="subject" class="form-control" value="{{ old('subject',$paper->subject) }}"></div>
         <div class="form-group"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="3">{{ old('description',$paper->description) }}</textarea></div>
         <div class="form-group"><label class="form-label">Tags <span class="form-hint" style="display:inline;margin:0">(comma-separated)</span></label><input type="text" name="tags" class="form-control" value="{{ old('tags',implode(', ',$paper->tags??[])) }}"></div>
       </div>

@@ -19,7 +19,7 @@ class ParseExamPaperJob implements ShouldQueue
 
     public function __construct(
         private ExamPaper $paper,
-        private string    $type,         // 'pdf' | 'typed'
+        private string    $type,         // 'pdf' | 'typed' | 'url'
         private ?string   $rawText = null
     ) {}
 
@@ -27,9 +27,11 @@ class ParseExamPaperJob implements ShouldQueue
     {
         Log::info("ParseExamPaperJob started for paper #{$this->paper->id}");
 
-        $parsed = $this->type === 'pdf'
-            ? $parser->parsePdf($this->paper)
-            : $parser->parseText($this->paper, $this->rawText ?? '');
+        $parsed = match ($this->type) {
+            'pdf'  => $parser->parsePdf($this->paper),
+            'url'  => $parser->parseUrl($this->paper, $this->rawText ?? ''),
+            default => $parser->parseText($this->paper, $this->rawText ?? ''),
+        };
 
         if (empty($parsed['questions'] ?? [])) {
             Log::warning("ParseExamPaperJob: no questions extracted for #{$this->paper->id}");
