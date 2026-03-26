@@ -112,8 +112,10 @@ btn?.addEventListener('click', async () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
         'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value
       },
+      credentials: 'same-origin',
       body: JSON.stringify({ topic, category, language })
     });
     const data = await res.json();
@@ -145,7 +147,10 @@ imgBtn?.addEventListener('click', async () => {
   imgBtn.disabled = true;
   imgResults.innerHTML = '';
   try {
-    const res = await fetch(`{{ route('admin.blog.images.search') }}?query=${encodeURIComponent(q)}&source=${source}`);
+    const res = await fetch(`{{ route('admin.blog.images.search') }}?query=${encodeURIComponent(q)}&source=${source}`, {
+      headers: { 'Accept': 'application/json' },
+      credentials: 'same-origin'
+    });
     const data = await res.json();
     if (!data.success) throw new Error(data.message || 'Failed');
     (data.items || []).forEach(item => {
@@ -161,7 +166,12 @@ imgBtn?.addEventListener('click', async () => {
         imgStatus.textContent = 'Saving image...';
         const r = await fetch('{{ route('admin.blog.images.attach') }}', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value },
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value
+          },
+          credentials: 'same-origin',
           body: JSON.stringify({ image_url: item.url })
         });
         const d = await r.json();
