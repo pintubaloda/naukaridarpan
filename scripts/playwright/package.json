@@ -1,0 +1,11 @@
+{
+  "name": "naukaridarpan-scrapers",
+  "version": "1.0.0",
+  "description": "Playwright scrapers for Naukaridarpan",
+  "dependencies": {
+    "playwright": "^1.40.0"
+  },
+  "scripts": {
+    "install-browsers": "npx playwright install chromium"
+  }
+}

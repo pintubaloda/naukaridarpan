@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Allow: /exams
+Allow: /blog
+Allow: /category
+Disallow: /student
+Disallow: /seller
+Disallow: /admin
+Disallow: /api
+
+Sitemap: https://naukaridarpan.com/sitemap.xml
