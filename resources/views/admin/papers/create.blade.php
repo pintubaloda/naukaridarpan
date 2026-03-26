@@ -10,6 +10,28 @@
         <p class="text-muted">Create and publish exams directly from the platform.</p>
       </div>
       @if(session('success'))<div class="alert alert-success mb-3">{{ session('success') }}</div>@endif
+      @if(request('paper_id'))
+      <div class="card card-static mb-3" id="parse-box">
+        <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border-l);font-weight:600;font-family:var(--fu)">Parsing Status</div>
+        <div class="card-body">
+          <div style="display:flex;gap:1.5rem;flex-wrap:wrap;align-items:center">
+            <div>
+              <div class="text-muted" style="font-size:.82rem">Status</div>
+              <div id="parse-status" style="font-weight:600">pending</div>
+            </div>
+            <div>
+              <div class="text-muted" style="font-size:.82rem">Questions</div>
+              <div id="parse-questions" style="font-weight:600">0</div>
+            </div>
+            <div>
+              <div class="text-muted" style="font-size:.82rem">Types</div>
+              <div id="parse-types" style="font-weight:600">—</div>
+            </div>
+          </div>
+          <div id="parse-log" style="margin-top:1rem;font-size:.85rem;color:var(--ink-l)">Waiting for parser…</div>
+        </div>
+      </div>
+      @endif
       @if($errors->any())
         <div class="alert alert-error mb-3">{{ $errors->first() }}</div>
       @endif
@@ -77,4 +99,33 @@
     </main>
   </div>
 </div>
+@if(request('paper_id'))
+@push('scripts')
+<script>
+  const parseId = "{{ request('paper_id') }}";
+  const statusEl = document.getElementById('parse-status');
+  const qEl = document.getElementById('parse-questions');
+  const tEl = document.getElementById('parse-types');
+  const logEl = document.getElementById('parse-log');
+  async function refreshParse(){
+    try{
+      const r = await fetch(`{{ url('/admin/papers') }}/${parseId}/parse-status`, {
+        headers:{'Accept':'application/json','X-Requested-With':'XMLHttpRequest'},
+        credentials:'same-origin'
+      });
+      const d = await r.json();
+      statusEl.textContent = d.status || 'pending';
+      qEl.textContent = d.total_questions ?? 0;
+      tEl.textContent = d.question_types ? Object.keys(d.question_types).join(', ') : '—';
+      logEl.textContent = d.log || 'Waiting for parser…';
+      if (d.status === 'done' || d.status === 'failed') return;
+      setTimeout(refreshParse, 5000);
+    }catch(e){
+      setTimeout(refreshParse, 7000);
+    }
+  }
+  refreshParse();
+</script>
+@endpush
+@endif
 @endsection

@@ -13,8 +13,31 @@ use App\Http\Controllers\Admin\KYCController as AdminKYCController;
 use App\Http\Controllers\Admin\BlogAdminController;
 use App\Http\Controllers\Blog\BlogController;
 use App\Http\Controllers\MarketplaceController;
+use App\Models\BlogPost;
 
 // ── PUBLIC ──────────────────────────────────────────────────────────────────
+Route::get('/sitemap.xml', function () {
+    $posts = BlogPost::published()->orderByDesc('updated_at')->get(['slug','updated_at','published_at']);
+    $urls = [
+        ['loc' => route('home'), 'lastmod' => now()->toAtomString()],
+        ['loc' => route('exams.browse'), 'lastmod' => now()->toAtomString()],
+        ['loc' => route('blog.index'), 'lastmod' => now()->toAtomString()],
+    ];
+    foreach ($posts as $post) {
+        $urls[] = [
+            'loc' => route('blog.show', $post->slug),
+            'lastmod' => optional($post->updated_at ?? $post->published_at)->toAtomString(),
+        ];
+    }
+    $xml = view('sitemap.xml', compact('urls'))->render();
+    return response($xml, 200)->header('Content-Type', 'application/xml');
+})->name('sitemap');
+
+Route::get('/robots.txt', function () {
+    $content = "User-agent: *\nAllow: /\nSitemap: " . route('sitemap');
+    return response($content, 200)->header('Content-Type', 'text/plain');
+})->name('robots');
+
 Route::get('/',                          [MarketplaceController::class, 'home'])->name('home');
 Route::get('/exams',                     [MarketplaceController::class, 'browse'])->name('exams.browse');
 Route::get('/exams/{slug}',              [MarketplaceController::class, 'show'])->name('exams.show');
@@ -105,6 +128,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/blog/images/attach',               [BlogAdminController::class, 'attachImage'])->name('blog.images.attach');
     Route::get('/papers/create',                     [AdminController::class, 'createPaper'])->name('papers.create');
     Route::post('/papers',                           [AdminController::class, 'storePaper'])->name('papers.store');
+    Route::get('/papers/{paper}/parse-status',       [AdminController::class, 'parseStatus'])->name('papers.parse-status');
     Route::get('/scraped',                           [AdminController::class, 'scrapedPapers'])->name('scraped');
     Route::post('/scraped/{paper}/publish',          [AdminController::class, 'publishScraped'])->name('scraped.publish');
     Route::get('/professor-leads',                   [AdminController::class, 'professorLeads'])->name('professor-leads');

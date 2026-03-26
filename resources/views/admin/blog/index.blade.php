@@ -113,6 +113,7 @@ async function generateAI(){
       document.getElementById('ai-status-text').textContent='✓ Draft saved. Opening editor...';
       document.getElementById('ai-spinner').style.display='none';
       if (d.edit_url) { window.location.href = d.edit_url; return; }
+      if (d.post_id) { window.location.href = `{{ url('/admin/blog') }}/${d.post_id}/edit`; return; }
     } else {
       document.getElementById('ai-status').className='alert alert-error mb-3';
       document.getElementById('ai-status-text').textContent='Generation failed: '+d.message;

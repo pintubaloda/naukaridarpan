@@ -185,6 +185,16 @@ class AdminController extends Controller
             \App\Jobs\ParseExamPaperJob::dispatch($paper, 'typed', $r->typed_content);
         }
 
-        return redirect()->route('admin.papers.create')->with('success', 'Paper created. Parsing started.');
+        return redirect()->route('admin.papers.create', ['paper_id' => $paper->id])->with('success', 'Paper created. Parsing started.');
+    }
+
+    public function parseStatus(\App\Models\ExamPaper $paper)
+    {
+        return response()->json([
+            'status'          => $paper->parse_status,
+            'total_questions' => $paper->total_questions,
+            'question_types'  => $paper->question_types,
+            'log'             => $paper->parse_log,
+        ]);
     }
 }
