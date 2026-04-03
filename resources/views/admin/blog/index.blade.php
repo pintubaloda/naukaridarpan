@@ -54,7 +54,7 @@
     </div>
     <div class="form-group">
       <label class="form-label">Topic</label>
-      <input type="text" id="ai-topic" class="form-control" placeholder="e.g. March 2026 Current Affairs Highlights">
+      <input type="text" id="ai-topic" class="form-control" placeholder="e.g. March 2026 Current Affairs">
     </div>
     <div class="form-group">
       <label class="form-label">Category</label>
@@ -112,7 +112,9 @@ async function generateAI(){
     if(d.success){
       document.getElementById('ai-status-text').textContent='✓ Draft saved successfully.';
       document.getElementById('ai-spinner').style.display='none';
-      setTimeout(()=>window.location.reload(), 800);
+      setTimeout(() => {
+        window.location.href = d.edit_url || '{{ route('admin.blog.index') }}';
+      }, 400);
     } else {
       document.getElementById('ai-status').className='alert alert-error mb-3';
       document.getElementById('ai-status-text').textContent='Generation failed: '+d.message;

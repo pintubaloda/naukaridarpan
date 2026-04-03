@@ -7,7 +7,14 @@
     <main>
       <div style="margin-bottom:1.5rem">
         <h2 class="mb-1">Upload Paper (Admin)</h2>
-        <p class="text-muted">Create and publish exams directly from the platform.</p>
+        <p class="text-muted">Create exams from PDF, typed/manual entry, or continue in TAO when you need the full exam engine.</p>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.75rem">
+          <a href="{{ route('admin.papers.create', ['input_type' => 'typed']) }}" class="btn btn-outline btn-sm">Manual Exam Entry</a>
+          <a href="{{ route('admin.papers.create', ['input_type' => 'pdf']) }}" class="btn btn-ghost btn-sm">Upload PDF</a>
+          @if(config('services.tao.url'))
+            <a href="{{ config('services.tao.url') }}" class="btn btn-ghost btn-sm" target="_blank" rel="noopener">Open TAO</a>
+          @endif
+        </div>
       </div>
       @if(session('success'))<div class="alert alert-success mb-3">{{ session('success') }}</div>@endif
       @if(request('paper_id'))
@@ -88,15 +95,20 @@
           <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border-l);font-weight:600;font-family:var(--fu)">Paper Content</div>
           <div class="card-body">
             <div class="form-group"><label class="form-label">Input Type</label>
-              <select name="input_type" class="form-control">
-                <option value="pdf">Upload PDF</option>
-                <option value="url">PDF URL</option>
-                <option value="typed">Typed</option>
+              @php $selectedInputType = request('input_type', old('input_type', 'pdf')); @endphp
+              <select name="input_type" id="paper-input-type" class="form-control">
+                <option value="pdf" {{ $selectedInputType === 'pdf' ? 'selected' : '' }}>Upload PDF</option>
+                <option value="url" {{ $selectedInputType === 'url' ? 'selected' : '' }}>PDF URL</option>
+                <option value="typed" {{ $selectedInputType === 'typed' ? 'selected' : '' }}>Manual / Typed Entry</option>
               </select>
             </div>
-            <div class="form-group"><label class="form-label">PDF File</label><input type="file" name="pdf_file" class="form-control" accept=".pdf"></div>
-            <div class="form-group"><label class="form-label">PDF URL</label><input type="url" name="pdf_url" class="form-control"></div>
-            <div class="form-group"><label class="form-label">Typed Content</label><textarea name="typed_content" class="form-control" rows="8"></textarea></div>
+            <div class="form-group" id="paper-pdf-file-group"><label class="form-label">PDF File</label><input type="file" name="pdf_file" class="form-control" accept=".pdf"></div>
+            <div class="form-group" id="paper-pdf-url-group"><label class="form-label">PDF URL</label><input type="url" name="pdf_url" class="form-control"></div>
+            <div class="form-group" id="paper-typed-group">
+              <label class="form-label">Typed Content</label>
+              <textarea name="typed_content" class="form-control" rows="8" placeholder="Q1. Question text&#10;A. Option 1&#10;B. Option 2&#10;C. Option 3&#10;D. Option 4&#10;Answer: A"></textarea>
+              <div class="form-hint">Use this for direct manual paper and exam entry without uploading a file.</div>
+            </div>
           </div>
         </div>
 
@@ -105,33 +117,49 @@
     </main>
   </div>
 </div>
-@if(request('paper_id'))
 @push('scripts')
 <script>
-  const parseId = "{{ request('paper_id') }}";
-  const statusEl = document.getElementById('parse-status');
-  const qEl = document.getElementById('parse-questions');
-  const tEl = document.getElementById('parse-types');
-  const logEl = document.getElementById('parse-log');
-  async function refreshParse(){
-    try{
-      const r = await fetch(`{{ url('/admin/papers') }}/${parseId}/parse-status`, {
-        headers:{'Accept':'application/json','X-Requested-With':'XMLHttpRequest'},
-        credentials:'same-origin'
-      });
-      const d = await r.json();
-      statusEl.textContent = d.status || 'pending';
-      qEl.textContent = d.total_questions ?? 0;
-      tEl.textContent = d.question_types ? Object.keys(d.question_types).join(', ') : '—';
-      logEl.textContent = d.log || 'Waiting for parser…';
-      if (d.status === 'done' || d.status === 'failed') return;
-      setTimeout(refreshParse, 5000);
-    }catch(e){
-      setTimeout(refreshParse, 7000);
-    }
+function togglePaperInputFields() {
+  const selected = document.getElementById('paper-input-type')?.value || 'pdf';
+  const pdfFile = document.getElementById('paper-pdf-file-group');
+  const pdfUrl = document.getElementById('paper-pdf-url-group');
+  const typed = document.getElementById('paper-typed-group');
+
+  if (pdfFile) pdfFile.style.display = selected === 'pdf' ? 'block' : 'none';
+  if (pdfUrl) pdfUrl.style.display = selected === 'url' ? 'block' : 'none';
+  if (typed) typed.style.display = selected === 'typed' ? 'block' : 'none';
+}
+
+document.getElementById('paper-input-type')?.addEventListener('change', togglePaperInputFields);
+togglePaperInputFields();
+
+const parseId = "{{ request('paper_id') }}";
+const statusEl = document.getElementById('parse-status');
+const qEl = document.getElementById('parse-questions');
+const tEl = document.getElementById('parse-types');
+const logEl = document.getElementById('parse-log');
+
+async function refreshParse(){
+  if (!parseId || !statusEl || !qEl || !tEl || !logEl) return;
+
+  try{
+    const r = await fetch(`{{ url('/admin/papers') }}/${parseId}/parse-status`, {
+      headers:{'Accept':'application/json','X-Requested-With':'XMLHttpRequest'},
+      credentials:'same-origin'
+    });
+    const d = await r.json();
+    statusEl.textContent = d.status || 'pending';
+    qEl.textContent = d.total_questions ?? 0;
+    tEl.textContent = d.question_types ? Object.keys(d.question_types).join(', ') : '—';
+    logEl.textContent = d.log || 'Waiting for parser…';
+    if (d.status === 'done' || d.status === 'failed') return;
+    setTimeout(refreshParse, 5000);
+  }catch(e){
+    setTimeout(refreshParse, 7000);
   }
-  refreshParse();
+}
+
+refreshParse();
 </script>
 @endpush
-@endif
 @endsection

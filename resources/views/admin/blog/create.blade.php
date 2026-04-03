@@ -6,6 +6,7 @@
   <div style="margin-bottom:1.5rem"><a href="{{ route('admin.blog.index') }}" style="font-size:.85rem;color:var(--ink-l)">← Blog Manager</a><h2 class="mt-1">Create New Post</h2></div>
   @if($errors->any())<div class="alert alert-error mb-3">{{ $errors->first() }}</div>@endif
   <form action="{{ route('admin.blog.store') }}" method="POST" id="blog-form">@csrf
+    <input type="hidden" name="status" id="post-status" value="{{ old('status','draft') }}">
     <div class="card card-static mb-3">
       <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border-l);font-weight:600;font-family:var(--fu)">AI Draft Generator</div>
       <div class="card-body">
@@ -79,7 +80,13 @@
       <div style="position:sticky;top:80px">
         <div class="card card-static card-body">
           <div class="form-group"><label class="form-label">Category</label><select name="category" class="form-control"><option>Sarkari Result</option><option>Admit Card</option><option>Vacancy</option><option>Exam Date</option><option>Answer Key</option><option>Study Tips</option><option>Current Affairs</option><option>Historical News</option><option>Sports News</option><option>Most Important News</option></select></div>
-          <div class="form-group"><label class="form-label">Status</label><select name="status" class="form-control"><option value="draft">Draft</option><option value="published">Published</option></select></div>
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <select name="status_display" id="status-display" class="form-control">
+              <option value="draft" {{ old('status','draft') === 'draft' ? 'selected' : '' }}>Draft</option>
+              <option value="published" {{ old('status') === 'published' ? 'selected' : '' }}>Published</option>
+            </select>
+          </div>
           <div class="form-group"><label class="form-label">Meta Title</label><input type="text" name="meta_title" class="form-control" value="{{ old('meta_title') }}" placeholder="60 chars max"></div>
           <div class="form-group"><label class="form-label">Meta Description</label><textarea name="meta_description" class="form-control" rows="2" placeholder="160 chars max">{{ old('meta_description') }}</textarea></div>
           <div class="form-group">
@@ -91,7 +98,10 @@
             </div>
           </div>
           <div class="form-group"><label class="form-label">Tags <span class="form-hint" style="display:inline;margin:0">(comma-separated)</span></label><input type="text" name="tags" class="form-control" value="{{ old('tags') }}"></div>
-          <button type="submit" class="btn btn-primary btn-block">Publish Post</button>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+            <button type="submit" class="btn btn-ghost" id="save-draft-btn" style="flex:1">Save Draft</button>
+            <button type="submit" class="btn btn-primary" id="publish-post-btn" style="flex:1">Save & Publish</button>
+          </div>
         </div>
       </div>
     </div>
@@ -101,6 +111,24 @@
 <script>
 const btn = document.getElementById('ai-generate');
 const statusEl = document.getElementById('ai-status');
+const statusField = document.getElementById('post-status');
+const statusDisplay = document.getElementById('status-display');
+const saveDraftBtn = document.getElementById('save-draft-btn');
+const publishPostBtn = document.getElementById('publish-post-btn');
+
+function syncPostStatus(value) {
+  const normalized = value === 'published' ? 'published' : 'draft';
+  if (statusField) statusField.value = normalized;
+  if (statusDisplay) statusDisplay.value = normalized;
+  if (saveDraftBtn) saveDraftBtn.textContent = normalized === 'published' ? 'Keep as Draft' : 'Save Draft';
+  if (publishPostBtn) publishPostBtn.textContent = normalized === 'published' ? 'Publish Post' : 'Save & Publish';
+}
+
+statusDisplay?.addEventListener('change', (event) => syncPostStatus(event.target.value));
+saveDraftBtn?.addEventListener('click', () => syncPostStatus('draft'));
+publishPostBtn?.addEventListener('click', () => syncPostStatus('published'));
+syncPostStatus(statusDisplay?.value || 'draft');
+
 btn?.addEventListener('click', async () => {
   const topic = document.getElementById('ai-topic').value.trim();
   const category = document.getElementById('ai-category').value;
@@ -147,7 +175,8 @@ const imgBtn = document.getElementById('img-search');
 const imgStatus = document.getElementById('img-status');
 const imgResults = document.getElementById('img-results');
 imgBtn?.addEventListener('click', async () => {
-  const q = document.getElementById('img-query').value.trim() || document.getElementById('ai-topic').value.trim();
+  const enteredQuery = document.getElementById('img-query').value.trim();
+  const q = enteredQuery !== '' ? enteredQuery : document.getElementById('ai-topic').value.trim();
   const source = document.getElementById('img-source').value;
   if (!q) { imgStatus.textContent = 'Enter a topic or search term.'; return; }
   imgStatus.textContent = 'Searching...';

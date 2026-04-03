@@ -33,7 +33,7 @@ class BlogAdminController extends Controller
             'tags'             => 'nullable|string',
             'status'           => 'required|in:draft,published',
         ]);
-        BlogPost::create([
+        $post = BlogPost::create([
             'author_id'        => auth()->id(),
             'title'            => $r->title,
             'slug'             => Str::slug($r->title) . '-' . Str::random(4),
@@ -48,7 +48,9 @@ class BlogAdminController extends Controller
             'published_at'     => $r->status === 'published' ? now() : null,
             'is_ai_generated'  => false,
         ]);
-        return redirect()->route('admin.blog.index')->with('success', 'Post created.');
+        $message = $r->status === 'draft' ? 'Draft saved.' : 'Post published.';
+
+        return redirect()->route('admin.blog.edit', $post)->with('success', $message);
     }
 
     public function edit(BlogPost $post) { return view('admin.blog.edit', compact('post')); }
