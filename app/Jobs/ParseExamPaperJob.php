@@ -3,7 +3,6 @@ namespace App\Jobs;
 
 use App\Models\ExamPaper;
 use App\Services\AI\PaperParserService;
-use App\Services\TAO\TaoService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -23,7 +22,7 @@ class ParseExamPaperJob implements ShouldQueue
         private ?string   $rawText = null
     ) {}
 
-    public function handle(PaperParserService $parser, TaoService $tao): void
+    public function handle(PaperParserService $parser): void
     {
         Log::info("ParseExamPaperJob started for paper #{$this->paper->id}");
 
@@ -38,14 +37,10 @@ class ParseExamPaperJob implements ShouldQueue
             return;
         }
 
-        // Optionally push to TAO (only if TAO is configured)
-        if (config('services.tao.url')) {
-            $testId = $tao->createTestFromPaper($parsed, $this->paper->title);
-            if ($testId) {
-                $this->paper->update(['tao_test_id' => $testId]);
-                Log::info("TAO test created: {$testId} for paper #{$this->paper->id}");
-            }
-        }
+        $this->paper->update([
+            'tao_sync_status' => 'pending',
+            'tao_last_error' => null,
+        ]);
 
         Log::info("ParseExamPaperJob completed for paper #{$this->paper->id}");
     }

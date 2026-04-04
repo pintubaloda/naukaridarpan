@@ -1,6 +1,8 @@
 <?php
 namespace App\Services\TAO;
 
+use App\Models\ExamAttempt;
+use App\Models\ExamPaper;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -20,6 +22,42 @@ class TaoService
         $this->base = rtrim(config('services.tao.url', ''), '/');
         $this->user = config('services.tao.username', 'admin');
         $this->pass = config('services.tao.password', '');
+    }
+
+    public function isConfigured(): bool
+    {
+        return $this->base !== '' && $this->user !== '' && $this->pass !== '';
+    }
+
+    public function syncExamPaper(ExamPaper $paper): array
+    {
+        if (! $this->isConfigured()) {
+            return ['success' => false, 'message' => 'TAO is not configured.'];
+        }
+
+        $questions = $this->decodeQuestions($paper->questions_data);
+        if (empty($questions)) {
+            return ['success' => false, 'message' => 'No parsed questions available for TAO sync.'];
+        }
+
+        $parsedData = [
+            'questions' => $questions,
+            'duration_minutes' => $paper->duration_minutes,
+        ];
+
+        $testId = $this->createTestFromPaper($parsedData, $paper->title);
+        if (! $testId) {
+            return ['success' => false, 'message' => 'Unable to create TAO test from exam paper.'];
+        }
+
+        $deliveryId = $this->createDeliveryForTest($testId, 'ND_exam_' . $paper->id);
+
+        return [
+            'success' => true,
+            'test_id' => $testId,
+            'delivery_id' => $deliveryId,
+            'message' => $deliveryId ? 'Exam synced to TAO with delivery.' : 'Exam synced to TAO, but no delivery was created.',
+        ];
     }
 
     /** Push all questions from a parsed paper as a QTI test, return tao_test_id */
@@ -67,6 +105,52 @@ class TaoService
         if (! $deliveryUri) return ['delivery_uri' => null, 'launch_url' => null];
         $launch = $this->get('/taoDelivery/RestDelivery/getLaunchUrl', ['delivery' => $deliveryUri, 'testtaker' => $studentId]);
         return ['delivery_uri' => $deliveryUri, 'launch_url' => $launch['launch_url'] ?? null];
+    }
+
+    public function createDeliveryForTest(string $testUri, ?string $label = null): ?string
+    {
+        $resp = $this->post('/taoDelivery/RestDelivery/createDelivery', [
+            'test' => $testUri,
+            'label' => $label ?: 'ND_delivery_' . now()->timestamp,
+        ]);
+
+        return $resp['uri'] ?? null;
+    }
+
+    public function syncAttemptResult(ExamAttempt $attempt): array
+    {
+        if (! $this->isConfigured() || empty($attempt->tao_delivery_uri)) {
+            return ['success' => false, 'message' => 'Attempt is not linked to TAO delivery.'];
+        }
+
+        // TAO installations vary; try a small set of known-style result endpoints.
+        $payload = $this->get('/taoResultServer/RestResults/get', ['delivery' => $attempt->tao_delivery_uri]);
+        if (empty($payload)) {
+            $payload = $this->get('/taoResultServer/RestResults', ['delivery' => $attempt->tao_delivery_uri]);
+        }
+        if (empty($payload)) {
+            return ['success' => false, 'message' => 'TAO result payload was empty.'];
+        }
+
+        $normalized = $this->normalizeResultPayload($payload);
+
+        $attempt->tao_result = $payload;
+
+        $score = data_get($normalized, 'score');
+        $percentage = data_get($normalized, 'percentage');
+        if (is_numeric($score)) {
+            $attempt->score = (float) $score;
+        }
+        if (is_numeric($percentage)) {
+            $attempt->percentage = (float) $percentage;
+        }
+        if ($attempt->status === 'in_progress') {
+            $attempt->status = 'submitted';
+            $attempt->submitted_at = now();
+        }
+        $attempt->save();
+
+        return ['success' => true, 'message' => 'TAO result synced.', 'payload' => $payload];
     }
 
     // ── QTI XML builders ───────────────────────────────────────────────
@@ -200,5 +284,35 @@ XML;
             $r = Http::withBasicAuth($this->user, $this->pass)->timeout(30)->get($this->base . $path, $params);
             return $r->json() ?? [];
         } catch (\Exception $e) { Log::error("TAO GET {$path}: " . $e->getMessage()); return []; }
+    }
+
+    private function decodeQuestions(mixed $raw): array
+    {
+        if (is_array($raw)) {
+            return $raw;
+        }
+
+        if (! is_string($raw) || trim($raw) === '') {
+            return [];
+        }
+
+        return json_decode($raw, true) ?? [];
+    }
+
+    private function normalizeResultPayload(array $payload): array
+    {
+        if (isset($payload['score']) || isset($payload['percentage'])) {
+            return $payload;
+        }
+
+        if (isset($payload['data']) && is_array($payload['data'])) {
+            return $payload['data'];
+        }
+
+        if (isset($payload['result']) && is_array($payload['result'])) {
+            return $payload['result'];
+        }
+
+        return $payload;
     }
 }

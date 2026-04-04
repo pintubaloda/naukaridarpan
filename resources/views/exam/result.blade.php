@@ -37,6 +37,10 @@
   <div class="alert alert-warning mb-4">⚠️ {{ $attempt->tab_switch_count }} tab switch(es) detected during this exam.</div>
   @endif
 
+  @if(!empty($attempt->tao_result))
+  <div class="alert alert-info mb-4">TAO-backed exam result has been synced for this attempt.</div>
+  @endif
+
   {{-- Answer key --}}
   @if(!empty($questions))
   <h3 class="mb-3">Answer Review</h3>

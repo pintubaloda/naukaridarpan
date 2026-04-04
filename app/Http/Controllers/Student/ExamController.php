@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Student;
 use App\Http\Controllers\Controller;
 use App\Models\Purchase;
 use App\Models\ExamAttempt;
+use App\Services\TAO\TaoService;
 use Illuminate\Http\Request;
 
 class ExamController extends Controller
@@ -29,8 +30,8 @@ class ExamController extends Controller
         $purchase->increment('retakes_used');
 
         $taoLaunchUrl = null;
-        if (config('services.tao.url') && $purchase->examPaper->tao_test_id) {
-            $tao = app(\App\Services\TAO\TaoService::class);
+        $tao = app(TaoService::class);
+        if ($tao->isConfigured() && $purchase->examPaper->tao_test_id) {
             $delivery = $tao->createDeliveryWithLaunch($purchase->examPaper->tao_test_id, auth()->id());
             $taoLaunchUrl = $delivery['launch_url'] ?? null;
             $attempt->update([
@@ -95,6 +96,11 @@ class ExamController extends Controller
     public function result(ExamAttempt $attempt)
     {
         abort_if($attempt->student_id !== auth()->id(), 403);
+        $tao = app(TaoService::class);
+        if ($tao->isConfigured() && $attempt->tao_delivery_uri && empty($attempt->tao_result)) {
+            $tao->syncAttemptResult($attempt);
+            $attempt->refresh();
+        }
         $questions = json_decode($attempt->examPaper->questions_data, true) ?? [];
         return view('exam.result', compact('attempt', 'questions'));
     }

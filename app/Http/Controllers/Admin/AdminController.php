@@ -2,6 +2,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ExamPaperTaoSyncLog;
 use App\Models\{User, ExamPaper, Purchase, PayoutRequest, PlatformSetting};
 use Illuminate\Http\Request;
 
@@ -38,6 +39,23 @@ class AdminController extends Controller
         if ($r->search) $query->where(fn($q) => $q->where('name', 'like', '%'.$r->search.'%')->orWhere('email', 'like', '%'.$r->search.'%'));
         $users = $query->orderByDesc('created_at')->paginate(20)->withQueryString();
         return view('admin.users', compact('users'));
+    }
+
+    public function exams(Request $r)
+    {
+        $query = ExamPaper::with(['seller', 'category'])->orderByDesc('created_at');
+        if ($r->status) {
+            $query->where('status', $r->status);
+        }
+        if ($r->search) {
+            $query->where(function ($q) use ($r) {
+                $q->where('title', 'like', '%'.$r->search.'%')
+                    ->orWhere('subject', 'like', '%'.$r->search.'%')
+                    ->orWhere('slug', 'like', '%'.$r->search.'%');
+            });
+        }
+        $papers = $query->paginate(20)->withQueryString();
+        return view('admin.exams-index', compact('papers'));
     }
 
     public function toggleUser(User $user)
@@ -114,6 +132,120 @@ class AdminController extends Controller
     {
         $categories = \App\Models\Category::where('is_active', true)->orderBy('sort_order')->get();
         return view('admin.papers.create', compact('categories'));
+    }
+
+    public function editExam(\App\Models\ExamPaper $paper)
+    {
+        $paper->load(['taoSyncLogs.user']);
+        $categories = \App\Models\Category::where('is_active', true)->orderBy('sort_order')->get();
+        return view('admin.exams-edit', compact('paper', 'categories'));
+    }
+
+    public function updateExam(Request $r, \App\Models\ExamPaper $paper)
+    {
+        $r->validate([
+            'title'            => 'required|string|max:255',
+            'subject'          => 'nullable|string|max:255',
+            'exam_type'        => 'required|in:mock,previous_year',
+            'category_id'      => 'required|exists:categories,id',
+            'description'      => 'nullable|string|max:2000',
+            'language'         => 'required|in:English,Hindi,Both',
+            'duration_minutes' => 'required|integer|min:10|max:360',
+            'max_marks'        => 'required|integer|min:10',
+            'negative_marking' => 'nullable|numeric|min:0|max:1',
+            'max_retakes'      => 'required|integer|min:1|max:10',
+            'difficulty'       => 'required|in:easy,medium,hard',
+            'seller_price'     => 'required|numeric|min:0',
+            'is_free'          => 'boolean',
+            'tags'             => 'nullable|string',
+            'status'           => 'required|in:draft,pending_review,approved,rejected',
+        ]);
+
+        $markupPct    = (float) \App\Models\PlatformSetting::get('default_commission', 15);
+        $sellerPrice  = (float) $r->seller_price;
+        $markup       = round($sellerPrice * $markupPct / 100, 2);
+
+        $paper->update([
+            'title'            => $r->title,
+            'subject'          => $r->subject,
+            'exam_type'        => $r->exam_type,
+            'category_id'      => $r->category_id,
+            'description'      => $r->description,
+            'language'         => $r->language,
+            'duration_minutes' => $r->duration_minutes,
+            'max_marks'        => $r->max_marks,
+            'negative_marking' => $r->negative_marking ?? 0,
+            'max_retakes'      => $r->max_retakes,
+            'difficulty'       => $r->difficulty,
+            'seller_price'     => $sellerPrice,
+            'platform_markup'  => $markup,
+            'student_price'    => $r->boolean('is_free') ? 0 : $sellerPrice + $markup,
+            'is_free'          => $r->boolean('is_free'),
+            'tags'             => $r->tags ? array_map('trim', explode(',', $r->tags)) : [],
+            'status'           => $r->status,
+        ]);
+
+        return back()->with('success', 'Exam updated.');
+    }
+
+    public function syncExamToTao(\App\Models\ExamPaper $paper)
+    {
+        $tao = app(\App\Services\TAO\TaoService::class);
+        if (! $tao->isConfigured()) {
+            $this->logTaoSyncAttempt($paper, 'manual', false, 'TAO is not configured.');
+            return back()->with('error', 'TAO is not configured.');
+        }
+
+        if (! $paper->isReadyForTaoSync()) {
+            $this->logTaoSyncAttempt($paper, 'manual', false, 'Parse the exam paper successfully before syncing to TAO.');
+            return back()->with('error', 'Parse the exam paper successfully before syncing to TAO.');
+        }
+
+        $result = $tao->syncExamPaper($paper);
+        $paper->update([
+            'tao_test_id' => $result['test_id'] ?? $paper->tao_test_id,
+            'tao_delivery_id' => $result['delivery_id'] ?? $paper->tao_delivery_id,
+            'tao_sync_status' => !empty($result['success']) ? 'synced' : 'failed',
+            'tao_synced_at' => !empty($result['success']) ? now() : $paper->tao_synced_at,
+            'tao_last_error' => !empty($result['success']) ? null : ($result['message'] ?? 'TAO sync failed.'),
+        ]);
+
+        $this->logTaoSyncAttempt(
+            $paper->fresh(),
+            'manual',
+            !empty($result['success']),
+            $result['message'] ?? 'TAO sync completed.',
+            [
+                'exam_paper_id' => $paper->id,
+                'title' => $paper->title,
+                'total_questions' => $paper->total_questions,
+                'duration_minutes' => $paper->duration_minutes,
+            ],
+            $result
+        );
+
+        return back()->with(!empty($result['success']) ? 'success' : 'error', $result['message'] ?? 'TAO sync completed.');
+    }
+
+    protected function logTaoSyncAttempt(
+        ExamPaper $paper,
+        string $trigger,
+        bool $success,
+        string $message,
+        ?array $requestPayload = null,
+        ?array $responsePayload = null
+    ): void {
+        ExamPaperTaoSyncLog::create([
+            'exam_paper_id' => $paper->id,
+            'user_id' => auth()->id(),
+            'trigger' => $trigger,
+            'status' => $success ? 'success' : 'failed',
+            'message' => $message,
+            'request_payload' => $requestPayload,
+            'response_payload' => $responsePayload,
+            'tao_test_id' => $paper->tao_test_id,
+            'tao_delivery_id' => $paper->tao_delivery_id,
+        ]);
     }
 
     public function storePaper(Request $r)

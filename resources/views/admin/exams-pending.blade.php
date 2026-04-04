@@ -22,6 +22,7 @@
                 <span class="badge badge-gray">{{ ucfirst($paper->difficulty) }}</span>
                 <span class="badge badge-gray">{{ $paper->language }}</span>
                 <span class="badge {{ ['done'=>'badge-green','failed'=>'badge-red','processing'=>'badge-teal','pending'=>'badge-gold'][$paper->parse_status]??'badge-gray' }}">Parse: {{ ucfirst($paper->parse_status) }}</span>
+                <span class="badge {{ ['synced'=>'badge-green','failed'=>'badge-red','pending'=>'badge-gold'][$paper->tao_sync_status ?? 'pending'] ?? 'badge-gray' }}">TAO: {{ ucfirst($paper->tao_sync_status ?? 'pending') }}</span>
               </div>
               @if($paper->description)<p style="font-size:.85rem;color:var(--ink-m);margin-top:.5rem">{{ Str::limit($paper->description,200) }}</p>@endif
             </div>

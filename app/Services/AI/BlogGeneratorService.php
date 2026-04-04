@@ -33,7 +33,7 @@ class BlogGeneratorService
             $cat   = array_rand($topics);
             $topic = $topics[$cat][array_rand($topics[$cat])];
         }
-        $data  = $this->callClaude("$topic — " . now()->format('F Y'), $lang, $cat);
+        $data  = $this->callClaude($topic, $lang, $cat);
         if (! $data) return null;
 
         return BlogPost::create([
@@ -53,7 +53,13 @@ class BlogGeneratorService
     public function generateDraft(string $topic, string $lang, string $cat): ?array
     {
         $this->lastError = null;
-        $data = $this->callClaude("$topic — " . now()->format('F Y'), $lang, $cat);
+        $data = $this->callClaude($topic, $lang, $cat);
+        if (is_array($data)) {
+            // Keep the admin-entered topic exact instead of letting the model append SEO suffixes.
+            $data['title'] = $topic;
+            $data['meta_title'] = $topic;
+            $data['category'] = $data['category'] ?? $cat;
+        }
         return is_array($data) ? $data : null;
     }
 
@@ -89,11 +95,11 @@ Write a comprehensive SEO-optimised blog article about: {$topic}
 
 Return ONLY valid JSON (no markdown, no extra text):
 {
-  "title": "SEO title max 60 chars",
+  "title": "Use the exact topic text only, without adding prefixes or suffixes",
   "excerpt": "2-sentence summary max 160 chars",
   "category": "{$cat}",
   "tags": ["tag1","tag2","tag3","tag4","tag5"],
-  "meta_title": "SEO meta title max 60 chars",
+  "meta_title": "Use the exact topic text only, without adding prefixes or suffixes",
   "meta_description": "SEO meta description max 160 chars",
   "body": "Full HTML article 900-1200 words using <h2>,<h3>,<p>,<ul>,<li>,<strong>,<table>,<tr>,<th>,<td>. Include: intro, key highlights/dates table, step-by-step guide, eligibility, 4 FAQs, conclusion with CTA to practice on Naukaridarpan.com"
 }
@@ -106,37 +112,12 @@ PROMPT
                 return null;
             }
             $provider = PlatformSetting::get('ai_provider', 'openai');
-            if ($provider === 'gemini') {
-                $key   = PlatformSetting::get('gemini_api_key');
-                $model = $this->normalizeGeminiModel(PlatformSetting::get('gemini_model', 'gemini-2.5-flash'));
-                if (! $key) { $this->lastError = 'Gemini API key missing'; Log::error('BlogAI Gemini key missing'); return null; }
-                $resp = Http::withHeaders([
-                    'x-goog-api-key' => $key,
-                    'content-type'  => 'application/json',
-                ])->timeout(60)->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent", [
-                    'contents' => [[
-                        'parts' => [[ 'text' => $prompt ]],
-                    ]],
-                ]);
-                if (! $resp->successful()) { $this->lastError = 'Gemini HTTP ' . $resp->status(); Log::error('BlogAI Gemini HTTP error ' . $resp->status()); return null; }
-                $text = $resp->json('candidates.0.content.parts.0.text') ?? '';
-            } else {
-                $key   = PlatformSetting::get('openai_api_key');
-                $model = PlatformSetting::get('openai_model', 'gpt-4o-mini');
-                if (! $key) { $this->lastError = 'OpenAI API key missing'; Log::error('BlogAI OpenAI key missing'); return null; }
-                $resp = Http::withHeaders([
-                    'Authorization' => 'Bearer ' . $key,
-                    'Content-Type'  => 'application/json',
-                ])->timeout(60)->post('https://api.openai.com/v1/chat/completions', [
-                    'model' => $model,
-                    'messages' => [
-                        ['role' => 'system', 'content' => 'You are a helpful assistant that outputs only JSON.'],
-                        ['role' => 'user', 'content' => $prompt],
-                    ],
-                    'temperature' => 0.7,
-                ]);
-                if (! $resp->successful()) { $this->lastError = 'OpenAI HTTP ' . $resp->status(); Log::error('BlogAI OpenAI HTTP error ' . $resp->status()); return null; }
-                $text = $resp->json('choices.0.message.content') ?? '';
+            $text = $provider === 'gemini'
+                ? $this->generateWithGemini($prompt) ?? $this->generateWithOpenAI($prompt, true)
+                : $this->generateWithOpenAI($prompt);
+
+            if (! $text) {
+                return null;
             }
 
             $clean = trim(preg_replace('/```(?:json)?\n?/', '', (string)$text), "` \n");
@@ -156,6 +137,79 @@ PROMPT
     private function normalizeGeminiModel(string $model): string
     {
         return str_starts_with($model, 'models/') ? substr($model, 7) : $model;
+    }
+
+    private function generateWithGemini(string $prompt): ?string
+    {
+        $key   = PlatformSetting::get('gemini_api_key');
+        $model = $this->normalizeGeminiModel(PlatformSetting::get('gemini_model', 'gemini-2.5-flash'));
+        if (! $key) {
+            $this->lastError = 'Gemini API key missing';
+            Log::error('BlogAI Gemini key missing');
+            return null;
+        }
+
+        $resp = Http::withHeaders([
+            'x-goog-api-key' => $key,
+            'content-type' => 'application/json',
+        ])->timeout(60)->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent", [
+            'contents' => [[
+                'parts' => [['text' => $prompt]],
+            ]],
+        ]);
+
+        if (! $resp->successful()) {
+            $status = $resp->status();
+            $this->lastError = 'Gemini HTTP ' . $status;
+            Log::error('BlogAI Gemini HTTP error ' . $status);
+            return null;
+        }
+
+        return $resp->json('candidates.0.content.parts.0.text') ?? '';
+    }
+
+    private function generateWithOpenAI(string $prompt, bool $fallback = false): ?string
+    {
+        $key   = PlatformSetting::get('openai_api_key');
+        $model = PlatformSetting::get('openai_model', 'gpt-4o-mini');
+        if (! $key) {
+            if ($fallback && $this->lastError === 'Gemini HTTP 429') {
+                $this->lastError = 'Gemini rate limit hit and OpenAI fallback is not configured';
+            } else {
+                $this->lastError = 'OpenAI API key missing';
+            }
+            Log::error('BlogAI OpenAI key missing');
+            return null;
+        }
+
+        $resp = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $key,
+            'Content-Type' => 'application/json',
+        ])->timeout(60)->post('https://api.openai.com/v1/chat/completions', [
+            'model' => $model,
+            'messages' => [
+                ['role' => 'system', 'content' => 'You are a helpful assistant that outputs only JSON.'],
+                ['role' => 'user', 'content' => $prompt],
+            ],
+            'temperature' => 0.7,
+        ]);
+
+        if (! $resp->successful()) {
+            $status = $resp->status();
+            if ($fallback && $this->lastError === 'Gemini HTTP 429') {
+                $this->lastError = 'Gemini rate limit hit and OpenAI fallback failed with HTTP ' . $status;
+            } else {
+                $this->lastError = 'OpenAI HTTP ' . $status;
+            }
+            Log::error('BlogAI OpenAI HTTP error ' . $status);
+            return null;
+        }
+
+        if ($fallback && $this->lastError === 'Gemini HTTP 429') {
+            $this->lastError = null;
+        }
+
+        return $resp->json('choices.0.message.content') ?? '';
     }
 
     private function extractJson(string $text): ?array

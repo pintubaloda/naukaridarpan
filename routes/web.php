@@ -105,11 +105,15 @@ Route::middleware(['auth', 'role:seller'])->prefix('seller')->name('seller.')->g
 // ── ADMIN ────────────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard',                         [AdminController::class, 'dashboard'])->name('dashboard');
+    Route::get('/exams',                             [AdminController::class, 'exams'])->name('exams.index');
     Route::get('/users',                             [AdminController::class, 'users'])->name('users');
     Route::post('/users/{user}/toggle',              [AdminController::class, 'toggleUser'])->name('users.toggle');
     Route::get('/settings',                          [AdminController::class, 'settings'])->name('settings');
     Route::post('/settings',                         [AdminController::class, 'updateSettings'])->name('settings.update');
     Route::get('/exams/pending',                     [ExamApprovalController::class, 'pending'])->name('exams.pending');
+    Route::get('/exams/{paper}/edit',                [AdminController::class, 'editExam'])->name('exams.edit');
+    Route::put('/exams/{paper}',                     [AdminController::class, 'updateExam'])->name('exams.update');
+    Route::post('/exams/{paper}/sync-tao',           [AdminController::class, 'syncExamToTao'])->name('exams.sync-tao');
     Route::post('/exams/{paper}/approve',            [ExamApprovalController::class, 'approve'])->name('exams.approve');
     Route::post('/exams/{paper}/reject',             [ExamApprovalController::class, 'reject'])->name('exams.reject');
     Route::get('/kyc/pending',                       [AdminKYCController::class, 'pending'])->name('kyc.pending');
