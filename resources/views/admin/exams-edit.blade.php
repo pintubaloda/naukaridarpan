@@ -1,14 +1,17 @@
 @extends('layouts.app')
 @section('title','Edit Exam — Admin')
 @section('content')
-<div class="container section" style="max-width:820px">
-  <div style="margin-bottom:1.5rem">
-    <a href="{{ route('admin.exams.index') }}" style="font-size:.85rem;color:var(--ink-l)">← Back to Manage Exams</a>
-    <h2 class="mt-1">Edit Exam</h2>
-  </div>
-  @if(session('success'))<div class="alert alert-success mb-3">{{ session('success') }}</div>@endif
-  @if(session('error'))<div class="alert alert-error mb-3">{{ session('error') }}</div>@endif
-  @if($errors->any())<div class="alert alert-error mb-3">{{ $errors->first() }}</div>@endif
+<div class="container section">
+  <div class="dash-layout">
+    @include('components.admin-sidebar')
+    <main style="max-width:820px;width:100%">
+      <div style="margin-bottom:1.5rem">
+        <a href="{{ route('admin.exams.index') }}" style="font-size:.85rem;color:var(--ink-l)">← Back to Manage Exams</a>
+        <h2 class="mt-1">Edit Exam</h2>
+      </div>
+      @if(session('success'))<div class="alert alert-success mb-3">{{ session('success') }}</div>@endif
+      @if(session('error'))<div class="alert alert-error mb-3">{{ session('error') }}</div>@endif
+      @if($errors->any())<div class="alert alert-error mb-3">{{ $errors->first() }}</div>@endif
 
   <div class="card card-static mb-3">
     <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border-l);font-weight:600;font-family:var(--fu)">TAO Integration</div>
@@ -170,5 +173,7 @@
 
     <button type="submit" class="btn btn-primary">Save Exam</button>
   </form>
+    </main>
+  </div>
 </div>
 @endsection
