@@ -63,7 +63,7 @@
   <div class="container">
     <h2 class="text-center mb-4">How Naukaridarpan Works</h2>
     <div class="g-grid grid-3">
-      @foreach([['🔍','Find Your Exam','Browse hundreds of mock tests by category, exam, difficulty or professor.'],['💳','Buy Securely','Pay via UPI, card or netbanking. Instant access after payment via Razorpay.'],['📊','Practice & Improve','Secure TAO exam engine. Detailed result with answer analysis and rank.']] as [$i,$t,$d])
+      @foreach([['🔍','Find Your Exam','Browse hundreds of mock tests by category, exam, difficulty or professor.'],['💳','Buy Securely','Pay via UPI, card or netbanking. Instant access after payment via Razorpay.'],['📊','Practice & Improve','Secure exam engine. Detailed result with answer analysis and rank.']] as [$i,$t,$d])
       <div class="card card-static card-body text-center">
         <div style="font-size:2.5rem;margin-bottom:.75rem">{{ $i }}</div>
         <h3 class="mb-2">{{ $t }}</h3><p style="font-size:.9rem">{{ $d }}</p>

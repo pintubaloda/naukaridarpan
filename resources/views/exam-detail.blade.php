@@ -80,6 +80,22 @@
         @endforeach
       </div>
       @endif
+
+      @if(!empty($leaderboard) && $leaderboard->count())
+      <div class="card card-static card-body mt-3">
+        <h3 class="mb-2" style="font-size:1rem">Leaderboard Snapshot</h3>
+        <div style="display:flex;flex-direction:column;gap:.6rem">
+          @foreach($leaderboard as $index => $entry)
+          <div style="display:flex;justify-content:space-between;gap:1rem;padding:.7rem .85rem;border-radius:var(--r1);background:var(--border-l)">
+            <div>
+              <strong>#{{ $index + 1 }}</strong> {{ $entry->student->name ?? 'Student' }}
+            </div>
+            <div class="text-muted" style="font-size:.84rem">{{ number_format($entry->percentage ?? 0, 2) }}% · {{ gmdate('i:s', $entry->time_taken_seconds ?? 0) }}</div>
+          </div>
+          @endforeach
+        </div>
+      </div>
+      @endif
     </div>
 
     {{-- RIGHT SIDEBAR (purchase card) --}}
@@ -103,14 +119,20 @@
         <div class="card-body">
           @if($purchased)
             {{-- Already purchased --}}
-            @php $purchase = $exam->purchases()->where('student_id',auth()->id())->where('payment_status','paid')->latest()->first(); @endphp
+            @php
+              $purchase = $exam->purchases()->where('student_id',auth()->id())->where('payment_status','paid')->latest()->first();
+              $activeAttempt = $purchase?->attempts()->where('student_id', auth()->id())->where('status', 'in_progress')->latest()->first();
+            @endphp
             <div class="alert alert-success mb-3">
               <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-width="2" stroke-linecap="round"/></svg>
               You own this exam
             </div>
-            @if($purchase && $purchase->canAttempt())
+            @if($activeAttempt)
+              <a href="{{ route('student.exam.take',$purchase) }}" class="btn btn-primary btn-block btn-lg mb-2">Resume Exam →</a>
+              <p class="text-muted text-center" style="font-size:.82rem">Your progress is saved and ready to continue.</p>
+            @elseif($purchase && $purchase->canAttempt())
               <a href="{{ route('student.exam.start',$purchase) }}" class="btn btn-primary btn-block btn-lg mb-2">Start Exam →</a>
-              <p class="text-muted text-center" style="font-size:.82rem">{{ $purchase->retakes_allowed - $purchase->retakes_used }} retake(s) remaining</p>
+              <p class="text-muted text-center" style="font-size:.82rem">{{ max($purchase->retakes_allowed - $purchase->retakes_used, 0) }} retake(s) remaining</p>
             @else
               <div class="alert alert-warning">No retakes remaining for this purchase.</div>
             @endif

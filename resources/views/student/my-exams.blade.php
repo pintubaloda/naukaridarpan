@@ -10,6 +10,10 @@
       @if($purchases->count())
         <div style="display:flex;flex-direction:column;gap:1rem">
           @foreach($purchases as $p)
+          @php
+            $activeAttempt = $p->attempts->where('status', 'in_progress')->sortByDesc('created_at')->first();
+            $latestAttempt = $p->attempts->sortByDesc('created_at')->first();
+          @endphp
           <div class="card card-static" style="display:flex;align-items:center;gap:1.25rem;padding:1.25rem;flex-wrap:wrap">
             <div style="width:56px;height:56px;background:var(--teal-l);border-radius:var(--r2);display:flex;align-items:center;justify-content:center;font-size:1.6rem;flex-shrink:0">📝</div>
             <div style="flex:1;min-width:0">
@@ -22,13 +26,16 @@
                 <span class="badge badge-gray">{{ $p->retakes_used }}/{{ $p->retakes_allowed }} retakes used</span>
                 @php $best = $p->attempts->whereNotNull('percentage')->max('percentage'); @endphp
                 @if($best)<span class="badge badge-green">Best: {{ round($best) }}%</span>@endif
+                @if($activeAttempt)<span class="badge badge-gold">Resume available</span>@endif
               </div>
             </div>
             <div style="display:flex;gap:.5rem;flex-shrink:0;align-items:center">
-              @if($p->attempts->count())
-              <a href="{{ route('student.exam.result',$p->attempts->last()) }}" class="btn btn-ghost btn-sm">Last Result</a>
+              @if($latestAttempt && $latestAttempt->status === 'submitted')
+              <a href="{{ route('student.exam.result',$latestAttempt) }}" class="btn btn-ghost btn-sm">Last Result</a>
               @endif
-              @if($p->canAttempt())
+              @if($activeAttempt)
+              <a href="{{ route('student.exam.take',$p) }}" class="btn btn-primary btn-sm">Resume Exam →</a>
+              @elseif($p->canAttempt())
               <a href="{{ route('student.exam.start',$p) }}" class="btn btn-primary btn-sm">Start Exam →</a>
               @else
               <span class="badge badge-gray" style="padding:.4rem .75rem">No retakes left</span>

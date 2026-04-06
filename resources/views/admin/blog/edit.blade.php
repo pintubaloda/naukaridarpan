@@ -6,7 +6,7 @@
   <div style="margin-bottom:1.5rem"><a href="{{ route('admin.blog.index') }}" style="font-size:.85rem;color:var(--ink-l)">← Blog Manager</a><h2 class="mt-1">Edit Post</h2></div>
   @if(session('success'))<div class="alert alert-success mb-3">{{ session('success') }}</div>@endif
   @if($errors->any())<div class="alert alert-error mb-3">{{ $errors->first() }}</div>@endif
-  <form action="{{ route('admin.blog.update',$post) }}" method="POST">@csrf @method('PUT')
+  <form action="{{ route('admin.blog.update',$post) }}" method="POST" id="blog-edit-form">@csrf @method('PUT')
     <div class="g-grid" style="grid-template-columns:1fr 280px;gap:2rem;align-items:start">
       <div>
         <div class="form-group"><label class="form-label">Title *</label><input type="text" name="title" class="form-control" value="{{ old('title',$post->title) }}" required></div>
@@ -23,7 +23,7 @@
           <div class="form-group"><label class="form-label">Tags</label><input type="text" name="tags" class="form-control" value="{{ old('tags',implode(', ',$post->tags??[])) }}"></div>
           <div style="display:flex;gap:.5rem">
             <button type="submit" class="btn btn-primary" style="flex:1">Save</button>
-            <form action="{{ route('admin.blog.destroy',$post) }}" method="POST" onsubmit="return confirm('Delete?')">@csrf @method('DELETE')<button type="submit" class="btn btn-danger">Del</button></form>
+            <button type="submit" form="blog-delete-form" class="btn btn-danger" onclick="return confirm('Delete?')">Del</button>
           </div>
         </div>
         <div class="card card-static card-body mt-3">
@@ -52,6 +52,7 @@
       </div>
     </div>
   </form>
+  <form action="{{ route('admin.blog.destroy',$post) }}" method="POST" id="blog-delete-form" style="display:none">@csrf @method('DELETE')</form>
 </div>
 @push('scripts')
 <script>

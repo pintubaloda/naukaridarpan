@@ -9,6 +9,19 @@
       <p style="color:rgba(255,255,255,.7);font-size:.9rem">{{ $purchase->examPaper->category->name ?? '' }}</p>
     </div>
     <div class="card-body" style="padding:2rem">
+      @if($activeAttempt)
+      <div class="alert alert-warning mb-3">
+        <strong>Resume available:</strong> You have an in-progress attempt for this exam. We will continue from your saved answers.
+      </div>
+      @endif
+
+      @if($latestAttempt && $latestAttempt->status === 'submitted')
+      <div class="alert alert-success mb-3">
+        <strong>Latest result:</strong> {{ number_format($latestAttempt->score ?? 0, 2) }} / {{ $purchase->examPaper->max_marks }}
+        ({{ number_format($latestAttempt->percentage ?? 0, 2) }}%)
+      </div>
+      @endif
+
       <div class="g-grid" style="grid-template-columns:repeat(3,1fr);gap:1rem;text-align:center;margin-bottom:2rem">
         @foreach([['📝',$purchase->examPaper->total_questions,'Questions'],['⏱',$purchase->examPaper->duration_minutes.' min','Duration'],['🏆',$purchase->examPaper->max_marks,'Total Marks']] as [$i,$v,$l])
         <div style="background:var(--cream);border-radius:var(--r2);padding:1rem">
@@ -30,7 +43,8 @@
             <li>Ensure a stable internet connection</li>
             <li>Do not switch tabs or minimise the browser — it will be logged</li>
             <li>The timer starts immediately when you click Start</li>
-            <li>You have {{ $purchase->retakes_allowed - $purchase->retakes_used }} attempt(s) remaining after this one</li>
+            <li>You have {{ max($purchase->retakes_allowed - $purchase->retakes_used, 0) }} new attempt(s) remaining after this one</li>
+            <li>Your progress is auto-saved while you answer</li>
             <li>Submit before time runs out — the exam auto-submits when the timer ends</li>
           </ul>
         </div>
@@ -38,9 +52,11 @@
 
       <div style="display:flex;gap:1rem;justify-content:center">
         <a href="{{ route('student.exams') }}" class="btn btn-ghost">← Back</a>
-        <a href="{{ route('student.exam.take',$purchase) }}" class="btn btn-primary btn-lg">Start Exam Now →</a>
+        <a href="{{ route('student.exam.take',$purchase) }}" class="btn btn-primary btn-lg">{{ $activeAttempt ? 'Resume Exam →' : 'Start Exam Now →' }}</a>
       </div>
-      <p class="text-muted text-center mt-2" style="font-size:.8rem">Retake {{ $purchase->retakes_used + 1 }} of {{ $purchase->retakes_allowed }}</p>
+      <p class="text-muted text-center mt-2" style="font-size:.8rem">
+        {{ $activeAttempt ? 'Continuing your current attempt' : 'Attempt '.($purchase->retakes_used + 1).' of '.$purchase->retakes_allowed }}
+      </p>
     </div>
   </div>
 </div>

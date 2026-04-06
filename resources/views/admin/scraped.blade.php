@@ -21,7 +21,7 @@
               <td class="text-muted">{{ $p->created_at->format('d M Y') }}</td>
               <td>
                 @if($p->parse_status==='done')
-                <form action="{{ route('admin.scraped.publish',$p) }}" method="POST">@csrf<button type="submit" class="btn btn-success btn-sm">Publish Free</button></form>
+                <a href="{{ route('admin.exams.edit',$p) }}" class="btn btn-ghost btn-sm">Open Draft</a>
                 @else<span class="text-muted" style="font-size:.82rem">Parsing…</span>@endif
               </td>
             </tr>

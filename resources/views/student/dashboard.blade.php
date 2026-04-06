@@ -68,6 +68,7 @@
         @if($recentPurchases->count())
         <div style="display:flex;flex-direction:column;gap:0">
           @foreach($recentPurchases as $p)
+          @php $activeAttempt = $p->attempts->where('status', 'in_progress')->sortByDesc('created_at')->first(); @endphp
           <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-bottom:1px solid var(--border-l);gap:1rem;flex-wrap:wrap">
             <div style="display:flex;align-items:center;gap:.75rem;flex:1;min-width:0">
               <div style="width:40px;height:40px;border-radius:var(--r2);background:var(--teal-l);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">📝</div>
@@ -76,7 +77,9 @@
                 <div style="font-size:.78rem;color:var(--ink-l)">{{ $p->examPaper->category->name ?? '' }} · {{ $p->retakes_used }}/{{ $p->retakes_allowed }} attempts used</div>
               </div>
             </div>
-            @if($p->canAttempt())
+            @if($activeAttempt)
+            <a href="{{ route('student.exam.take',$p) }}" class="btn btn-primary btn-sm" style="flex-shrink:0">Resume →</a>
+            @elseif($p->canAttempt())
             <a href="{{ route('student.exam.start',$p) }}" class="btn btn-primary btn-sm" style="flex-shrink:0">Start →</a>
             @else
             <span class="badge badge-gray">No retakes left</span>

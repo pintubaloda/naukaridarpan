@@ -6,8 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\AutomationRunLog;
 use App\Models\AutomationSource;
 use App\Models\BlogPost;
+use App\Models\Category;
+use App\Models\ExamPaper;
 use App\Models\ProfessorLead;
+use App\Jobs\ParseExamPaperJob;
+use App\Services\Exams\AnswerKeyService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class N8nAutomationController extends Controller
@@ -203,7 +209,167 @@ class N8nAutomationController extends Controller
                 'sources_sync' => url('/api/v1/automation/sources/sync'),
                 'blog_import' => url('/api/v1/automation/blog/import'),
                 'professor_leads_import' => url('/api/v1/automation/professor-leads/import'),
+                'exam_import' => url('/api/v1/automation/exams/import'),
+                'pending_answer_keys' => url('/api/v1/automation/exams/pending-answer-keys'),
             ],
+        ]);
+    }
+
+    public function importExamPapers(Request $request)
+    {
+        $this->authorizeAutomation($request);
+
+        $data = $request->validate([
+            'exams' => 'required|array|min:1',
+            'exams.*.title' => 'required|string|max:255',
+            'exams.*.pdf_url' => 'required|url|max:1000',
+            'exams.*.source_url' => 'nullable|url|max:1000',
+            'exams.*.source_name' => 'nullable|string|max:255',
+            'exams.*.description' => 'nullable|string',
+            'exams.*.subject' => 'nullable|string|max:255',
+            'exams.*.exam_type' => 'nullable|in:mock,previous_year',
+            'exams.*.category_slug' => 'nullable|string|max:100',
+            'exams.*.language' => 'nullable|in:English,Hindi,Both',
+            'exams.*.difficulty' => 'nullable|in:easy,medium,hard',
+            'exams.*.tags' => 'nullable|array',
+        ]);
+
+        $processed = 0;
+        $created = 0;
+        $updated = 0;
+
+        foreach ($data['exams'] as $examData) {
+            $category = $this->resolveExamCategory($examData['category_slug'] ?? null);
+            if (! $category) {
+                continue;
+            }
+
+            $lookupUrl = $examData['source_url'] ?? $examData['pdf_url'];
+            $paper = ExamPaper::firstOrNew([
+                'source' => 'scraped',
+                'source_url' => $lookupUrl,
+            ]);
+            $wasExisting = $paper->exists;
+
+            $paper->fill([
+                'seller_id' => 1,
+                'category_id' => $category->id,
+                'title' => $examData['title'],
+                'subject' => $examData['subject'] ?? ($category->slug ?? null),
+                'exam_type' => $examData['exam_type'] ?? 'previous_year',
+                'slug' => $paper->slug ?: Str::slug($examData['title']) . '-' . Str::random(5),
+                'description' => $examData['description'] ?? 'Official exam paper imported by n8n. Draft review pending.',
+                'language' => $examData['language'] ?? 'English',
+                'difficulty' => $examData['difficulty'] ?? 'medium',
+                'source' => 'scraped',
+                'source_url' => $lookupUrl,
+                'is_free' => true,
+                'seller_price' => 0,
+                'platform_markup' => 0,
+                'student_price' => 0,
+                'status' => 'draft',
+                'parse_status' => 'pending',
+                'tags' => $examData['tags'] ?? [$examData['source_name'] ?? 'official', 'imported'],
+            ]);
+            $paper->save();
+
+            if ($this->syncPaperPdf($paper, $examData['pdf_url'])) {
+                ParseExamPaperJob::dispatch($paper, 'pdf');
+            }
+
+            $processed++;
+            $wasExisting ? $updated++ : $created++;
+        }
+
+        $this->logRun('exam-import', 'exams', null, 'processed', [
+            'created' => $created,
+            'updated' => $updated,
+        ], 'Exam import completed.', $processed);
+
+        return response()->json([
+            'success' => true,
+            'processed' => $processed,
+            'created' => $created,
+            'updated' => $updated,
+        ]);
+    }
+
+    public function pendingAnswerKeys(Request $request)
+    {
+        $this->authorizeAutomation($request);
+
+        $papers = ExamPaper::query()
+            ->where('status', 'draft')
+            ->whereNotNull('answer_key_pdf_url')
+            ->orderByDesc('updated_at')
+            ->get([
+                'id',
+                'title',
+                'subject',
+                'questions_data',
+                'answer_key_pdf_url',
+                'source_url',
+                'updated_at',
+            ])
+            ->filter(function (ExamPaper $paper) {
+                $questions = $paper->questions_data ? json_decode((string) $paper->questions_data, true) : [];
+                if (empty($questions)) {
+                    return false;
+                }
+
+                return collect($questions)->contains(function ($question) {
+                    $correct = $question['correct_answer'] ?? null;
+                    return $correct === null || $correct === '' || (is_array($correct) && empty($correct));
+                });
+            })
+            ->values()
+            ->map(fn (ExamPaper $paper) => [
+                'id' => $paper->id,
+                'title' => $paper->title,
+                'subject' => $paper->subject,
+                'answer_key_pdf_url' => $paper->answer_key_pdf_url,
+                'source_url' => $paper->source_url,
+                'updated_at' => $paper->updated_at,
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'papers' => $papers,
+        ]);
+    }
+
+    public function applyExamAnswerKey(Request $request, ExamPaper $paper, AnswerKeyService $answerKeys)
+    {
+        $this->authorizeAutomation($request);
+
+        $data = $request->validate([
+            'answer_key_pdf_url' => 'nullable|url|max:1000',
+            'answer_key_text' => 'nullable|string',
+            'serial_answers' => 'nullable|array',
+        ]);
+
+        $serialAnswers = $data['serial_answers'] ?? [];
+        if (empty($serialAnswers) && ! empty($data['answer_key_text'])) {
+            $serialAnswers = $answerKeys->extractSerialAnswersFromText($data['answer_key_text']);
+        }
+
+        if (empty($serialAnswers)) {
+            return response()->json(['success' => false, 'message' => 'No serial answers found to apply.'], 422);
+        }
+
+        $result = $answerKeys->applySerialAnswers($paper, $serialAnswers, $data['answer_key_pdf_url'] ?? null);
+
+        $this->logRun('answer-key-apply', 'exams', $paper->subject, 'processed', [
+            'paper_id' => $paper->id,
+            'updated' => $result['updated'],
+            'unmatched' => count($result['unmatched_serials']),
+        ], 'Answer key applied to exam.', $result['updated']);
+
+        return response()->json([
+            'success' => true,
+            'paper_id' => $paper->id,
+            'updated' => $result['updated'],
+            'unmatched_serials' => $result['unmatched_serials'],
         ]);
     }
 
@@ -226,5 +392,31 @@ class N8nAutomationController extends Controller
             'message' => $message,
             'processed_count' => $processedCount,
         ]);
+    }
+
+    private function resolveExamCategory(?string $slug): ?Category
+    {
+        if ($slug) {
+            $category = Category::where('slug', $slug)->first();
+            if ($category) {
+                return $category;
+            }
+        }
+
+        return Category::where('is_active', true)->orderBy('sort_order')->first();
+    }
+
+    private function syncPaperPdf(ExamPaper $paper, string $pdfUrl): bool
+    {
+        $response = Http::timeout(90)->get($pdfUrl);
+        if (! $response->successful()) {
+            return false;
+        }
+
+        $path = "papers/{$paper->id}/" . Str::uuid() . '.pdf';
+        Storage::disk('public')->put($path, $response->body());
+        $paper->update(['original_file' => $path]);
+
+        return true;
     }
 }

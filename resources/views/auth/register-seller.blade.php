@@ -23,7 +23,7 @@
       {{-- Benefits list --}}
       <div class="card card-static card-body">
         <h3 class="mb-3" style="font-size:1.1rem">Why sell on Naukaridarpan?</h3>
-        @foreach(['✅ Keep 85% of every sale','✅ AI converts your PDF to full exam','✅ Built-in TAO secure exam engine','✅ Students from across India','✅ Detailed analytics dashboard','✅ KYC-verified, direct bank payout','✅ Free SEO-optimised professor profile','✅ No technical knowledge needed'] as $b)
+        @foreach(['✅ Keep 85% of every sale','✅ AI converts your PDF to full exam','✅ Built-in secure exam engine','✅ Students from across India','✅ Detailed analytics dashboard','✅ KYC-verified, direct bank payout','✅ Free SEO-optimised professor profile','✅ No technical knowledge needed'] as $b)
         <div style="display:flex;align-items:center;gap:.5rem;padding:.4rem 0;font-size:.9rem;border-bottom:1px solid var(--border-l)">{{ $b }}</div>
         @endforeach
       </div>

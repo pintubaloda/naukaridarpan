@@ -352,6 +352,19 @@
             <textarea name="qti_metadata_text" class="form-control" rows="4" placeholder="manifest_identifier: nd-assessment-001&#10;tool_vendor: Naukaridarpan">{{ old('qti_metadata_text', collect($paper->qti_metadata ?? [])->map(fn($value, $key) => $key.': '.$value)->implode("\n")) }}</textarea>
           </div>
         </div>
+        <div class="form-group mt-2" style="margin-bottom:0">
+          <label class="form-label">Answer Key PDF URL</label>
+          <input type="url" name="answer_key_pdf_url" class="form-control" value="{{ old('answer_key_pdf_url', $paper->answer_key_pdf_url) }}" placeholder="https://upsc.gov.in/.../answer-key.pdf">
+          <div class="text-muted" style="font-size:.78rem;margin-top:.35rem">
+            Keep imported exams in draft, add the official answer-key PDF here, and let n8n apply serial-wise answers before you approve the exam.
+            @if($paper->answer_key_applied_at)
+              <br>Last applied: {{ $paper->answer_key_applied_at->format('d M Y, h:i A') }}.
+            @endif
+            @if($paper->answer_key_parse_log)
+              <br>{{ $paper->answer_key_parse_log }}
+            @endif
+          </div>
+        </div>
       </div>
     </div>
 

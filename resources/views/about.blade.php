@@ -9,7 +9,7 @@
     <h2 class="mb-3">Our Mission</h2>
     <p style="font-size:1rem;line-height:1.8;margin-bottom:2rem">Naukaridarpan was built with one goal — to make high-quality mock tests affordable and accessible to every competitive exam aspirant in India, regardless of their location or background. We connect verified educators and retired officers with students who need real exam-level practice.</p>
     <div class="g-grid grid-3 mb-4">
-      @foreach([['🎯','Mission','Quality exam practice for every Indian aspirant, from Tier-1 cities to remote villages.'],['👨‍🏫','For Educators','A platform to monetise your expertise — upload papers, set prices, earn passive income.'],['🔒','Secure & Fair','TAO-powered exams with anti-cheat, verified sellers, and transparent payouts.']] as [$i,$t,$d])
+      @foreach([['🎯','Mission','Quality exam practice for every Indian aspirant, from Tier-1 cities to remote villages.'],['👨‍🏫','For Educators','A platform to monetise your expertise — upload papers, set prices, earn passive income.'],['🔒','Secure & Fair','Secure exam engine with anti-cheat, verified sellers, and transparent payouts.']] as [$i,$t,$d])
       <div class="card card-static card-body text-center"><div style="font-size:2rem;margin-bottom:.5rem">{{ $i }}</div><h3 style="font-size:1rem;margin-bottom:.4rem">{{ $t }}</h3><p style="font-size:.85rem">{{ $d }}</p></div>
       @endforeach
     </div>

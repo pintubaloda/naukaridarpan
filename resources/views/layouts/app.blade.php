@@ -133,7 +133,7 @@
     <div class="footer-grid">
       <div>
         <div class="footer-brand">Naukaridarpan</div>
-        <p class="footer-desc">India's trusted marketplace for competitive exam mock tests. Verified educators. Secure TAO exam engine. Instant detailed results. 48-hour seller payouts.</p>
+        <p class="footer-desc">India's trusted marketplace for competitive exam mock tests. Verified educators. Secure exam engine. Instant detailed results. 48-hour seller payouts.</p>
         <div style="display:flex;gap:.75rem;margin-top:1.25rem;flex-wrap:wrap;">
           <a href="#" style="color:rgba(255,255,255,.6);font-size:.82rem;font-family:var(--font-ui);">Telegram</a>
           <a href="#" style="color:rgba(255,255,255,.6);font-size:.82rem;font-family:var(--font-ui);">YouTube</a>

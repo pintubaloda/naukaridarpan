@@ -63,6 +63,9 @@ Route::prefix('v1/automation')->group(function () {
     Route::post('/sources/sync', [N8nAutomationController::class, 'syncSources']);
     Route::post('/blog/import', [N8nAutomationController::class, 'importBlogPosts']);
     Route::post('/professor-leads/import', [N8nAutomationController::class, 'importProfessorLeads']);
+    Route::post('/exams/import', [N8nAutomationController::class, 'importExamPapers']);
+    Route::get('/exams/pending-answer-keys', [N8nAutomationController::class, 'pendingAnswerKeys']);
+    Route::post('/exams/{paper}/answer-key', [N8nAutomationController::class, 'applyExamAnswerKey']);
 });
 
 // ── AUTHENTICATED API ───────────────────────────────────────────────────────

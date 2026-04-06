@@ -4,8 +4,8 @@ use App\Models\{ExamPaper,Category,User,BlogPost};
 use Illuminate\Http\Request;
 class MarketplaceController extends Controller {
     public function home() {
-        $featuredExams = ExamPaper::approved()->with(['seller.sellerProfile','category'])->where('is_free',false)->orderByDesc('total_purchases')->take(8)->get();
-        $freeExams     = ExamPaper::approved()->where('is_free',true)->with(['seller.sellerProfile','category'])->take(6)->get();
+        $featuredExams = ExamPaper::approved()->uniqueLatest()->with(['seller.sellerProfile','category'])->where('is_free',false)->orderByDesc('total_purchases')->take(8)->get();
+        $freeExams     = ExamPaper::approved()->uniqueLatest()->where('is_free',true)->with(['seller.sellerProfile','category'])->take(6)->get();
         $categories    = Category::whereNull('parent_id')->where('is_active',true)->withCount(['examPapers'=>fn($q)=>$q->where('status','approved')])->orderBy('sort_order')->get();
         $topSellers    = User::where('role','seller')->with('sellerProfile')->whereHas('sellerProfile',fn($q)=>$q->where('is_verified',true))->take(6)->get();
         $latestPosts   = BlogPost::published()->orderByDesc('published_at')->take(3)->get();
@@ -13,7 +13,7 @@ class MarketplaceController extends Controller {
         return view('home',compact('featuredExams','freeExams','categories','topSellers','latestPosts','stats'));
     }
     public function browse(Request $r) {
-        $query = ExamPaper::approved()->with(['seller.sellerProfile','category']);
+        $query = ExamPaper::approved()->uniqueLatest()->with(['seller.sellerProfile','category']);
         if($r->category) $query->whereHas('category',fn($q)=>$q->where('slug',$r->category));
         if($r->search)   $query->where(fn($q)=>$q->where('title','like','%'.$r->search.'%')->orWhere('description','like','%'.$r->search.'%'));
         if($r->difficulty) $query->where('difficulty',$r->difficulty);
@@ -34,17 +34,18 @@ class MarketplaceController extends Controller {
         $exam=ExamPaper::where('slug',$slug)->where('status','approved')->with(['seller.sellerProfile','category'])->firstOrFail();
         $purchased=false;
         if(auth()->check()) $purchased=$exam->purchases()->where('student_id',auth()->id())->where('payment_status','paid')->exists();
-        $relatedExams=ExamPaper::approved()->where('category_id',$exam->category_id)->where('id','!=',$exam->id)->with('seller.sellerProfile')->take(4)->get();
-        return view('exam-detail',compact('exam','purchased','relatedExams'));
+        $relatedExams=ExamPaper::approved()->uniqueLatest()->where('category_id',$exam->category_id)->where('id','!=',$exam->id)->with('seller.sellerProfile')->take(4)->get();
+        $leaderboard=$exam->attempts()->where('status','submitted')->whereNotNull('percentage')->with('student')->orderByDesc('percentage')->orderBy('time_taken_seconds')->take(5)->get();
+        return view('exam-detail',compact('exam','purchased','relatedExams','leaderboard'));
     }
     public function professorProfile(string $username) {
         $profile=\App\Models\SellerProfile::where('username',$username)->with('user')->firstOrFail();
-        $exams=ExamPaper::approved()->where('seller_id',$profile->user_id)->with('category')->orderByDesc('total_purchases')->paginate(12);
+        $exams=ExamPaper::approved()->uniqueLatest()->where('seller_id',$profile->user_id)->with('category')->orderByDesc('total_purchases')->paginate(12);
         return view('professor-profile',compact('profile','exams'));
     }
     public function category(string $slug) {
         $category=Category::where('slug',$slug)->where('is_active',true)->firstOrFail();
-        $exams=ExamPaper::approved()->where('category_id',$category->id)->with(['seller.sellerProfile','category'])->orderByDesc('total_purchases')->paginate(16);
+        $exams=ExamPaper::approved()->uniqueLatest()->where('category_id',$category->id)->with(['seller.sellerProfile','category'])->orderByDesc('total_purchases')->paginate(16);
         return view('category',compact('category','exams'));
     }
     public function about()   { return view('about'); }
