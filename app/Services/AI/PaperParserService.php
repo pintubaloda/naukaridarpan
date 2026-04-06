@@ -61,7 +61,7 @@ class PaperParserService
                     'x-goog-api-key' => $key,
                     'content-type'   => 'application/json',
                 ])->timeout(120)->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent", [
-                    'contents' => [[ 'parts' => [[ 'text' => $this->prompt() . \"\\n\\nCONTENT:\\n\" . $raw ]] ]],
+                    'contents' => [[ 'parts' => [[ 'text' => $this->prompt() . "\n\nCONTENT:\n" . $raw ]] ]],
                 ]);
                 return $this->handleGeminiResponse($paper, $resp);
             }
@@ -75,7 +75,7 @@ class PaperParserService
                 'model' => $model,
                 'messages' => [
                     ['role' => 'system', 'content' => 'You are a helpful assistant that outputs only JSON.'],
-                    ['role' => 'user', 'content' => $this->prompt() . \"\\n\\nCONTENT:\\n\" . $raw],
+                    ['role' => 'user', 'content' => $this->prompt() . "\n\nCONTENT:\n" . $raw],
                 ],
                 'temperature' => 0.2,
             ]);

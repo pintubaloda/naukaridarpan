@@ -67,7 +67,18 @@
               </td>
               <td>{{ $paper->is_free ? 'Free' : '₹'.number_format($paper->student_price,0) }}</td>
               <td class="text-muted">{{ $paper->updated_at->format('d M Y') }}</td>
-              <td><a href="{{ route('admin.exams.edit',$paper) }}" class="btn btn-ghost btn-sm">Edit</a></td>
+              <td>
+                <div style="display:flex;gap:.5rem;justify-content:flex-end;flex-wrap:wrap">
+                  <a href="{{ route('admin.exams.edit',$paper) }}" class="btn btn-ghost btn-sm">Edit</a>
+                  @if($paper->status !== 'approved')
+                  <form method="POST" action="{{ route('admin.exams.destroy',$paper) }}" onsubmit="return confirm('Delete this exam? This cannot be undone.');">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--err)">Delete</button>
+                  </form>
+                  @endif
+                </div>
+              </td>
             </tr>
             @empty
             <tr><td colspan="10" class="text-center text-muted" style="padding:2rem">No exams found.</td></tr>

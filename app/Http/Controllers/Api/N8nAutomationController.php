@@ -30,6 +30,10 @@ class N8nAutomationController extends Controller
             'sources.*.site_kind' => 'nullable|string|max:100',
             'sources.*.base_url' => 'nullable|url|max:500',
             'sources.*.rss_url' => 'nullable|url|max:500',
+            'sources.*.listing_page_url' => 'nullable|url|max:500',
+            'sources.*.answer_key_listing_url' => 'nullable|url|max:500',
+            'sources.*.pdf_kind' => 'nullable|in:text,scanned',
+            'sources.*.answer_key_mode' => 'nullable|in:same_pdf,separate_pdf,none',
             'sources.*.discovery_query' => 'nullable|string|max:255',
             'sources.*.notes' => 'nullable|string',
             'sources.*.is_active' => 'nullable|boolean',
@@ -50,6 +54,10 @@ class N8nAutomationController extends Controller
                     'subject' => $data['subject'] ?? null,
                     'source_type' => $source['source_type'],
                     'site_kind' => $source['site_kind'] ?? null,
+                    'listing_page_url' => $source['listing_page_url'] ?? null,
+                    'answer_key_listing_url' => $source['answer_key_listing_url'] ?? null,
+                    'pdf_kind' => $source['pdf_kind'] ?? 'text',
+                    'answer_key_mode' => $source['answer_key_mode'] ?? 'same_pdf',
                     'discovery_query' => $source['discovery_query'] ?? null,
                     'notes' => $source['notes'] ?? null,
                     'is_active' => array_key_exists('is_active', $source) ? (bool) $source['is_active'] : true,
@@ -210,8 +218,41 @@ class N8nAutomationController extends Controller
                 'blog_import' => url('/api/v1/automation/blog/import'),
                 'professor_leads_import' => url('/api/v1/automation/professor-leads/import'),
                 'exam_import' => url('/api/v1/automation/exams/import'),
+                'paper_sources' => url('/api/v1/automation/paper-sources'),
                 'pending_answer_keys' => url('/api/v1/automation/exams/pending-answer-keys'),
             ],
+        ]);
+    }
+
+    public function paperSources(Request $request)
+    {
+        $this->authorizeAutomation($request);
+
+        $sources = AutomationSource::query()
+            ->where('is_active', true)
+            ->whereNotNull('listing_page_url')
+            ->when($request->filled('source_type'), fn ($query) => $query->where('source_type', (string) $request->input('source_type')))
+            ->when($request->filled('subject'), fn ($query) => $query->where('subject', (string) $request->input('subject')))
+            ->orderBy('subject')
+            ->orderBy('name')
+            ->get([
+                'id',
+                'subject',
+                'name',
+                'source_type',
+                'site_kind',
+                'base_url',
+                'listing_page_url',
+                'answer_key_listing_url',
+                'pdf_kind',
+                'answer_key_mode',
+                'discovery_query',
+                'notes',
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'sources' => $sources,
         ]);
     }
 

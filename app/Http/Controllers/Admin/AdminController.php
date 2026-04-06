@@ -5,6 +5,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ExamPaperTaoSyncLog;
 use App\Models\{User, ExamAttempt, ExamPaper, Purchase, PayoutRequest, PlatformSetting, ExamTemplate, QuestionBankItem};
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class AdminController extends Controller
 {
@@ -186,6 +187,23 @@ class AdminController extends Controller
     {
         $paper->update(['status' => 'approved', 'is_free' => true, 'student_price' => 0]);
         return back()->with('success', 'Scraped paper published as free exam.');
+    }
+
+    public function destroyExam(ExamPaper $paper)
+    {
+        abort_if($paper->status === 'approved', 403, 'Approved exams cannot be deleted from admin.');
+
+        if ($paper->original_file) {
+            foreach (['public', config('filesystems.default', 'local'), 's3'] as $disk) {
+                if (array_key_exists($disk, config('filesystems.disks', []))) {
+                    Storage::disk($disk)->delete($paper->original_file);
+                }
+            }
+        }
+
+        $paper->delete();
+
+        return back()->with('success', 'Exam deleted.');
     }
 
     public function professorLeads(Request $r)

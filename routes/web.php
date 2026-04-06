@@ -112,6 +112,8 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/exams',                             [AdminController::class, 'exams'])->name('exams.index');
     Route::get('/reports',                           [AdminController::class, 'reports'])->name('reports');
     Route::get('/automation-sources',                [AutomationAdminController::class, 'index'])->name('automation-sources.index');
+    Route::post('/automation-sources',               [AutomationAdminController::class, 'store'])->name('automation-sources.store');
+    Route::put('/automation-sources/{source}',       [AutomationAdminController::class, 'update'])->name('automation-sources.update');
     Route::get('/qti',                               [QtiAdminController::class, 'index'])->name('qti.index');
     Route::post('/qti/import',                       [QtiAdminController::class, 'import'])->name('qti.import');
     Route::post('/qti/export',                       [QtiAdminController::class, 'export'])->name('qti.export');
@@ -160,6 +162,8 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/papers/{paper}/parse-status',       [AdminController::class, 'parseStatus'])->name('papers.parse-status');
     Route::get('/scraped',                           [AdminController::class, 'scrapedPapers'])->name('scraped');
     Route::post('/scraped/{paper}/publish',          [AdminController::class, 'publishScraped'])->name('scraped.publish');
+    Route::delete('/scraped/{paper}',                [AdminController::class, 'destroyExam'])->name('scraped.destroy');
+    Route::delete('/exams/{paper}',                  [AdminController::class, 'destroyExam'])->name('exams.destroy');
     Route::get('/professor-leads',                   [AdminController::class, 'professorLeads'])->name('professor-leads');
     Route::post('/professor-leads/send-mailer',      [AdminController::class, 'sendOnboardingMailer'])->name('professor-leads.mail');
 });

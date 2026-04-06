@@ -570,9 +570,19 @@
         </div>
       </div>
     </div>
-
-    <button type="submit" class="btn btn-primary">Save Exam</button>
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:center">
+      <button type="submit" class="btn btn-primary">Save Exam</button>
+      @if($paper->status !== 'approved')
+      <button type="submit" form="delete-exam-form" class="btn btn-ghost" style="color:var(--err)" onclick="return confirm('Delete this exam? This cannot be undone.');">Delete Exam</button>
+      @endif
+    </div>
   </form>
+  @if($paper->status !== 'approved')
+  <form id="delete-exam-form" method="POST" action="{{ route('admin.exams.destroy', $paper) }}">
+    @csrf
+    @method('DELETE')
+  </form>
+  @endif
     </main>
   </div>
 </div>

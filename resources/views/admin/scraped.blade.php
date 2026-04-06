@@ -20,9 +20,16 @@
               <td><span class="parse-status {{ ['done'=>'ps-done','failed'=>'ps-failed','processing'=>'ps-processing','pending'=>'ps-pending'][$p->parse_status]??'ps-pending' }}" style="padding:.2rem .6rem;font-size:.72rem">{{ ucfirst($p->parse_status) }} · {{ $p->total_questions }} Qs</span></td>
               <td class="text-muted">{{ $p->created_at->format('d M Y') }}</td>
               <td>
-                @if($p->parse_status==='done')
-                <a href="{{ route('admin.exams.edit',$p) }}" class="btn btn-ghost btn-sm">Open Draft</a>
-                @else<span class="text-muted" style="font-size:.82rem">Parsing…</span>@endif
+                <div style="display:flex;gap:.5rem;justify-content:flex-end;align-items:center;flex-wrap:wrap">
+                  @if($p->parse_status==='done')
+                  <a href="{{ route('admin.exams.edit',$p) }}" class="btn btn-ghost btn-sm">Open Draft</a>
+                  @else<span class="text-muted" style="font-size:.82rem">Parsing…</span>@endif
+                  <form method="POST" action="{{ route('admin.scraped.destroy',$p) }}" onsubmit="return confirm('Delete this scraped draft paper? This cannot be undone.');">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--err)">Delete</button>
+                  </form>
+                </div>
               </td>
             </tr>
             @endforeach
