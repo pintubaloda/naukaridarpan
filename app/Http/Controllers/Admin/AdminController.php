@@ -197,15 +197,24 @@ class AdminController extends Controller
             return back()->with('error', 'No PDF is attached to this exam yet.');
         }
 
-        if (in_array($paper->parse_status, ['queued', 'processing'], true)) {
+        if (in_array($paper->parse_status, ['pending', 'processing'], true) && str_contains((string) $paper->parse_log, 'Queued')) {
             return back()->with('error', 'Parsing is already in progress for this paper.');
         }
 
         $updated = ExamPaper::query()
             ->whereKey($paper->id)
-            ->whereNotIn('parse_status', ['queued', 'processing'])
+            ->where(function ($query) {
+                $query->whereNotIn('parse_status', ['pending', 'processing'])
+                    ->orWhere(function ($inner) {
+                        $inner->where('parse_status', 'pending')
+                            ->where(function ($logQuery) {
+                                $logQuery->whereNull('parse_log')
+                                    ->orWhere('parse_log', 'not like', 'Queued%');
+                            });
+                    });
+            })
             ->update([
-                'parse_status' => 'queued',
+                'parse_status' => 'pending',
                 'parse_log' => ($paper->pdf_kind === 'scanned' ? 'Queued OCR parser. ' : 'Queued text parser. ')
                     . match ($paper->answer_key_mode) {
                         'separate_pdf' => 'Answer key expected from separate PDF.',
@@ -821,7 +830,7 @@ class AdminController extends Controller
     public function parseStatus(\App\Models\ExamPaper $paper)
     {
         $progress = match ($paper->parse_status) {
-            'queued' => 25,
+            'pending' => str_contains((string) $paper->parse_log, 'Queued') ? 25 : 5,
             'processing' => 65,
             'done' => 100,
             'failed' => 100,
@@ -834,7 +843,7 @@ class AdminController extends Controller
             'question_types'  => $paper->question_types,
             'log'             => $paper->parse_log,
             'progress'        => $progress,
-            'can_parse'       => ! in_array($paper->parse_status, ['queued', 'processing'], true),
+            'can_parse'       => ! (($paper->parse_status === 'processing') || ($paper->parse_status === 'pending' && str_contains((string) $paper->parse_log, 'Queued'))),
         ]);
     }
 }

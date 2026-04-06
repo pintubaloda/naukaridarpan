@@ -40,7 +40,7 @@
             <div style="margin-top:.55rem;background:var(--border-l);border-radius:999px;height:10px;overflow:hidden">
               @php
                 $initialProgress = match ($paper->parse_status) {
-                    'queued' => 25,
+                    'pending' => str_contains((string) $paper->parse_log, 'Queued') ? 25 : 5,
                     'processing' => 65,
                     'done' => 100,
                     'failed' => 100,
@@ -83,13 +83,13 @@
               class="btn btn-primary"
               id="parse-paper-button"
               data-status-url="{{ route('admin.papers.parse-status', $paper) }}"
-              @disabled(!$paper->original_file && !$paper->source_url || in_array($paper->parse_status, ['queued','processing'], true))
+              @disabled(!$paper->original_file && !$paper->source_url || $paper->parse_status === 'processing' || ($paper->parse_status === 'pending' && str_contains((string) $paper->parse_log, 'Queued')))
             >
-              {{ in_array($paper->parse_status, ['queued','processing'], true) ? 'Parsing In Progress' : 'Parse Now' }}
+              {{ $paper->parse_status === 'processing' || ($paper->parse_status === 'pending' && str_contains((string) $paper->parse_log, 'Queued')) ? 'Parsing In Progress' : 'Parse Now' }}
             </button>
           </form>
           <div id="parse-help-text" class="text-muted" style="font-size:.78rem;margin-top:.65rem">
-            @if(in_array($paper->parse_status, ['queued','processing'], true))
+            @if($paper->parse_status === 'processing' || ($paper->parse_status === 'pending' && str_contains((string) $paper->parse_log, 'Queued')))
               Parsing is already running. Please wait for it to finish before trying again.
             @else
               Question order is already randomized during exam attempts.
@@ -720,7 +720,7 @@ function applyParseState(payload) {
   if (!payload) return;
   const status = payload.status || 'pending';
   const progress = Number(payload.progress || 0);
-  const running = ['queued', 'processing'].includes(status);
+  const running = status === 'processing' || (status === 'pending' && String(payload.log || '').includes('Queued'));
 
   if (parseStatusLabel) parseStatusLabel.textContent = prettyStatus(status);
   if (parseProgressBar) {
@@ -758,7 +758,7 @@ async function pollParseStatus() {
     if (!response.ok) return;
     const payload = await response.json();
     applyParseState(payload);
-    if (['queued', 'processing'].includes(payload.status)) {
+    if (payload.status === 'processing' || (payload.status === 'pending' && String(payload.log || '').includes('Queued'))) {
       window.setTimeout(pollParseStatus, 4000);
     }
   } catch (error) {
