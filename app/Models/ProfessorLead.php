@@ -8,7 +8,7 @@ class ProfessorLead extends Model
 {
     protected $fillable = [
         'name', 'email', 'phone', 'platform', 'institution',
-        'subject', 'profile_url', 'subscriber_count',
+        'subject', 'department', 'designation', 'profile_url', 'source_name', 'source_url', 'lead_hash', 'notes', 'subscriber_count',
         'outreach_status', 'email_count', 'last_emailed_at',
     ];
 

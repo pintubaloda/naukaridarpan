@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\N8nAutomationController;
 use App\Http\Controllers\Student\ExamController;
 use App\Http\Controllers\MarketplaceController;
 
@@ -55,6 +56,13 @@ Route::prefix('v1')->group(function () {
         $exams   = \App\Models\ExamPaper::approved()->where('seller_id', $profile->user_id)->with('category')->paginate(12);
         return response()->json(['profile' => $profile, 'exams' => $exams]);
     });
+});
+
+Route::prefix('v1/automation')->group(function () {
+    Route::get('/bootstrap', [N8nAutomationController::class, 'bootstrap']);
+    Route::post('/sources/sync', [N8nAutomationController::class, 'syncSources']);
+    Route::post('/blog/import', [N8nAutomationController::class, 'importBlogPosts']);
+    Route::post('/professor-leads/import', [N8nAutomationController::class, 'importProfessorLeads']);
 });
 
 // ── AUTHENTICATED API ───────────────────────────────────────────────────────

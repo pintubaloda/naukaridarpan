@@ -14,7 +14,10 @@ class StudentController extends Controller
     {
         $user = auth()->user();
         $recentPurchases = Purchase::where('student_id', $user->id)->where('payment_status', 'paid')
-            ->with('examPaper.category')->orderByDesc('created_at')->take(5)->get();
+            ->with(['examPaper.category', 'attempts' => fn ($query) => $query->latest()])
+            ->orderByDesc('created_at')
+            ->take(5)
+            ->get();
         $totalPurchases = Purchase::where('student_id', $user->id)->where('payment_status', 'paid')->count();
         $totalAttempts  = ExamAttempt::where('student_id', $user->id)->count();
         $avgScore       = ExamAttempt::where('student_id', $user->id)->whereNotNull('percentage')->avg('percentage');

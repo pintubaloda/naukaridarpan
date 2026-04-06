@@ -22,19 +22,52 @@
         @endforeach
       </div>
 
-      <div class="g-grid" style="grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:2rem">
+      <div class="g-grid" style="grid-template-columns:repeat(2,1fr);gap:1rem;margin-bottom:2rem">
+        <div class="card card-static card-body">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem">
+            <div>
+              <div class="text-muted" style="font-size:.8rem">Submitted Attempts</div>
+              <div style="font-size:1.75rem;font-weight:700;color:var(--teal)">{{ number_format($stats['submitted_attempts']) }}</div>
+            </div>
+            <div style="text-align:right">
+              <div class="text-muted" style="font-size:.8rem">High Risk Attempts</div>
+              <div style="font-size:1.75rem;font-weight:700;color:var(--err)">{{ number_format($stats['high_risk_attempts']) }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="card card-static card-body">
+          <div style="font-weight:600;font-family:var(--fu);margin-bottom:.35rem">Engine Status</div>
+          <div class="text-muted" style="font-size:.84rem">Autosave, resume, analytics, section timers, ranking, and integrity review are now flowing through the Laravel-native exam engine.</div>
+        </div>
+      </div>
+
+      <div class="g-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:2rem">
         <a href="{{ route('admin.exams.index') }}" style="text-decoration:none">
           <div class="card card-static card-body" style="height:100%">
             <div style="font-size:1.25rem;margin-bottom:.5rem">📚</div>
             <div style="font-weight:600;font-family:var(--fu)">Manage Exams</div>
-            <div class="text-muted" style="font-size:.82rem;margin-top:.35rem">Open all exams, sync to TAO, and review statuses.</div>
+            <div class="text-muted" style="font-size:.82rem;margin-top:.35rem">Open all exams, review statuses, and maintain the Laravel-native engine.</div>
+          </div>
+        </a>
+        <a href="{{ route('admin.question-bank.index') }}" style="text-decoration:none">
+          <div class="card card-static card-body" style="height:100%">
+            <div style="font-size:1.25rem;margin-bottom:.5rem">🧩</div>
+            <div style="font-weight:600;font-family:var(--fu)">Question Bank</div>
+            <div class="text-muted" style="font-size:.82rem;margin-top:.35rem">Create reusable questions for multiple exams and sections.</div>
+          </div>
+        </a>
+        <a href="{{ route('admin.exam-templates.index') }}" style="text-decoration:none">
+          <div class="card card-static card-body" style="height:100%">
+            <div style="font-size:1.25rem;margin-bottom:.5rem">📐</div>
+            <div style="font-weight:600;font-family:var(--fu)">Exam Templates</div>
+            <div class="text-muted" style="font-size:.82rem;margin-top:.35rem">Save standard exam blueprints and section layouts.</div>
           </div>
         </a>
         <a href="{{ route('admin.exams.pending') }}" style="text-decoration:none">
           <div class="card card-static card-body" style="height:100%">
             <div style="font-size:1.25rem;margin-bottom:.5rem">📝</div>
             <div style="font-weight:600;font-family:var(--fu)">Exam Approvals</div>
-            <div class="text-muted" style="font-size:.82rem;margin-top:.35rem">Approve pending exams and trigger TAO sync on approval.</div>
+            <div class="text-muted" style="font-size:.82rem;margin-top:.35rem">Approve pending exams once content quality and readiness checks pass.</div>
           </div>
         </a>
         <a href="{{ route('admin.papers.create', ['input_type' => 'typed']) }}" style="text-decoration:none">
@@ -44,15 +77,34 @@
             <div class="text-muted" style="font-size:.82rem;margin-top:.35rem">Create typed papers directly from admin.</div>
           </div>
         </a>
-        @if(config('services.tao.url'))
-        <a href="{{ config('services.tao.url') }}" target="_blank" rel="noopener" style="text-decoration:none">
+        <a href="{{ route('admin.reports') }}" style="text-decoration:none">
           <div class="card card-static card-body" style="height:100%">
-            <div style="font-size:1.25rem;margin-bottom:.5rem">🔗</div>
-            <div style="font-weight:600;font-family:var(--fu)">Open TAO</div>
-            <div class="text-muted" style="font-size:.82rem;margin-top:.35rem">Jump straight into the TAO instance for advanced exam work.</div>
+            <div style="font-size:1.25rem;margin-bottom:.5rem">📊</div>
+            <div style="font-weight:600;font-family:var(--fu)">Reports</div>
+            <div class="text-muted" style="font-size:.82rem;margin-top:.35rem">Track attempts, weak areas, flagged exams, and top performers.</div>
           </div>
         </a>
-        @endif
+        <a href="{{ route('admin.qti.index') }}" style="text-decoration:none">
+          <div class="card card-static card-body" style="height:100%">
+            <div style="font-size:1.25rem;margin-bottom:.5rem">📦</div>
+            <div style="font-weight:600;font-family:var(--fu)">QTI Packages</div>
+            <div class="text-muted" style="font-size:.82rem;margin-top:.35rem">Import and export QTI-compatible packages from the exam engine.</div>
+          </div>
+        </a>
+        <a href="{{ route('admin.interoperability.index') }}" style="text-decoration:none">
+          <div class="card card-static card-body" style="height:100%">
+            <div style="font-size:1.25rem;margin-bottom:.5rem">🔌</div>
+            <div style="font-weight:600;font-family:var(--fu)">Interoperability</div>
+            <div class="text-muted" style="font-size:.82rem;margin-top:.35rem">Manage external assessment endpoints and preview exchange payloads.</div>
+          </div>
+        </a>
+        <a href="{{ route('admin.automation-sources.index') }}" style="text-decoration:none">
+          <div class="card card-static card-body" style="height:100%">
+            <div style="font-size:1.25rem;margin-bottom:.5rem">🛰️</div>
+            <div style="font-weight:600;font-family:var(--fu)">Automation Sources</div>
+            <div class="text-muted" style="font-size:.82rem;margin-top:.35rem">Review n8n-discovered RSS feeds, site sources, and sync runs for blogs and professor leads.</div>
+          </div>
+        </a>
       </div>
 
       {{-- Action items --}}
@@ -85,6 +137,50 @@
               @endforelse
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <div class="g-grid" style="grid-template-columns:1fr 1fr;gap:1rem;margin-top:2rem">
+        <div class="card card-static">
+          <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border-l)"><h3 style="font-size:1rem">Top Performing Attempts</h3></div>
+          <div class="tbl-wrap" style="border:none;border-radius:0">
+            <table class="tbl">
+              <thead><tr><th>Student</th><th>Exam</th><th>Score</th><th>Time</th></tr></thead>
+              <tbody>
+                @forelse($topAttempts as $attempt)
+                <tr>
+                  <td style="font-weight:500;font-family:var(--fu)">{{ $attempt->student->name ?? 'Student' }}</td>
+                  <td class="text-muted">{{ Str::limit($attempt->examPaper->title ?? 'Exam', 32) }}</td>
+                  <td>{{ number_format($attempt->percentage ?? 0, 2) }}%</td>
+                  <td class="text-muted">{{ gmdate('i:s', $attempt->time_taken_seconds ?? 0) }}</td>
+                </tr>
+                @empty
+                <tr><td colspan="4" class="text-muted text-center" style="padding:2rem">No submitted attempts yet.</td></tr>
+                @endforelse
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card card-static">
+          <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border-l)"><h3 style="font-size:1rem">High Risk Integrity Alerts</h3></div>
+          <div class="tbl-wrap" style="border:none;border-radius:0">
+            <table class="tbl">
+              <thead><tr><th>Student</th><th>Exam</th><th>Risk</th><th>Submitted</th></tr></thead>
+              <tbody>
+                @forelse($highRiskAttempts as $attempt)
+                <tr>
+                  <td style="font-weight:500;font-family:var(--fu)">{{ $attempt->student->name ?? 'Student' }}</td>
+                  <td class="text-muted">{{ Str::limit($attempt->examPaper->title ?? 'Exam', 32) }}</td>
+                  <td><span class="badge badge-red">{{ ucfirst($attempt->anti_cheat_review['risk_level'] ?? 'high') }}</span></td>
+                  <td class="text-muted">{{ $attempt->submitted_at?->format('d M, h:i A') ?: '—' }}</td>
+                </tr>
+                @empty
+                <tr><td colspan="4" class="text-muted text-center" style="padding:2rem">No high-risk attempts flagged yet.</td></tr>
+                @endforelse
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </main>

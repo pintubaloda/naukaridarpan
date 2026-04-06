@@ -13,9 +13,7 @@
         <div style="display:flex;gap:.5rem;flex-wrap:wrap">
           <a href="{{ route('admin.papers.create', ['input_type' => 'typed']) }}" class="btn btn-outline btn-sm">+ Manual Exam Entry</a>
           <a href="{{ route('admin.papers.create', ['input_type' => 'pdf']) }}" class="btn btn-primary btn-sm">+ Upload Paper</a>
-          @if(config('services.tao.url'))
-            <a href="{{ config('services.tao.url') }}" class="btn btn-ghost btn-sm" target="_blank" rel="noopener">Open TAO</a>
-          @endif
+          <a href="{{ route('admin.reports') }}" class="btn btn-ghost btn-sm">View Reports</a>
         </div>
       </div>
 
@@ -37,8 +35,10 @@
               <th>Exam</th>
               <th>Seller</th>
               <th>Status</th>
-              <th>TAO</th>
               <th>Parse</th>
+              <th>Attempts</th>
+              <th>Avg Score</th>
+              <th>Risk</th>
               <th>Price</th>
               <th>Updated</th>
               <th></th>
@@ -55,14 +55,22 @@
               </td>
               <td class="text-muted">{{ $paper->seller->name ?? 'Naukaridarpan' }}</td>
               <td><span class="badge {{ ['approved'=>'badge-green','draft'=>'badge-gray','pending_review'=>'badge-gold','rejected'=>'badge-red'][$paper->status] ?? 'badge-gray' }}">{{ ucfirst(str_replace('_',' ',$paper->status)) }}</span></td>
-              <td><span class="badge {{ ['synced'=>'badge-green','failed'=>'badge-red','pending'=>'badge-gold'][$paper->tao_sync_status ?? 'pending'] ?? 'badge-gray' }}">{{ ucfirst($paper->tao_sync_status ?? 'pending') }}</span></td>
               <td><span class="badge {{ ['done'=>'badge-green','failed'=>'badge-red','processing'=>'badge-teal','pending'=>'badge-gold'][$paper->parse_status] ?? 'badge-gray' }}">{{ ucfirst($paper->parse_status) }}</span></td>
+              <td>{{ number_format($paper->submitted_attempts_count ?? 0) }}</td>
+              <td>{{ $paper->avg_score !== null ? number_format($paper->avg_score, 2).'%' : '—' }}</td>
+              <td>
+                @if(($paper->high_risk_attempts_count ?? 0) > 0)
+                  <span class="badge badge-red">{{ $paper->high_risk_attempts_count }} alert(s)</span>
+                @else
+                  <span class="badge badge-green">Clean</span>
+                @endif
+              </td>
               <td>{{ $paper->is_free ? 'Free' : '₹'.number_format($paper->student_price,0) }}</td>
               <td class="text-muted">{{ $paper->updated_at->format('d M Y') }}</td>
               <td><a href="{{ route('admin.exams.edit',$paper) }}" class="btn btn-ghost btn-sm">Edit</a></td>
             </tr>
             @empty
-            <tr><td colspan="8" class="text-center text-muted" style="padding:2rem">No exams found.</td></tr>
+            <tr><td colspan="10" class="text-center text-muted" style="padding:2rem">No exams found.</td></tr>
             @endforelse
           </tbody>
         </table>

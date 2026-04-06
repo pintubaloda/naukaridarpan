@@ -6,7 +6,7 @@
     @include('components.admin-sidebar')
     <main>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem">
-        <div><h2 class="mb-1">Professor Leads CRM</h2><p class="text-muted">Educator contacts scraped for onboarding</p></div>
+        <div><h2 class="mb-1">Professor Leads CRM</h2><p class="text-muted">Educator contacts scraped or synced from n8n for onboarding</p></div>
         <form action="{{ route('admin.professor-leads.mail') }}" method="POST" id="mailer-form">@csrf
           <input type="hidden" name="template" value="invite">
           <button type="submit" class="btn btn-primary" onclick="collectLeads()">Send Invite Mailer to Selected</button>
@@ -15,7 +15,7 @@
       @if(session('success'))<div class="alert alert-success mb-3">{{ session('success') }}</div>@endif
       <div class="tbl-wrap">
         <table class="tbl">
-          <thead><tr><th><input type="checkbox" id="select-all" onchange="toggleAll(this)"></th><th>Name</th><th>Email</th><th>Platform</th><th>Subject</th><th>Status</th><th>Emails Sent</th></tr></thead>
+          <thead><tr><th><input type="checkbox" id="select-all" onchange="toggleAll(this)"></th><th>Name</th><th>Email</th><th>Platform</th><th>Subject</th><th>Source</th><th>Status</th><th>Emails Sent</th></tr></thead>
           <tbody>
             @foreach($leads as $lead)
             <tr>
@@ -24,6 +24,7 @@
               <td class="text-muted">{{ $lead->email ?? '—' }}</td>
               <td><span class="badge badge-gray">{{ $lead->platform ?? '—' }}</span></td>
               <td class="text-muted">{{ Str::limit($lead->subject,30) }}</td>
+              <td class="text-muted">{{ $lead->source_name ?: ($lead->institution ?: '—') }}</td>
               <td><span class="badge {{ ['new'=>'badge-gray','emailed'=>'badge-teal','replied'=>'badge-gold','onboarded'=>'badge-green','rejected'=>'badge-red'][$lead->outreach_status]??'badge-gray' }}">{{ ucfirst($lead->outreach_status) }}</span></td>
               <td class="text-muted">{{ $lead->email_count }}</td>
             </tr>

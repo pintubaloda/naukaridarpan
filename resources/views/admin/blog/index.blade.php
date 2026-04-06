@@ -7,7 +7,7 @@
     @include('components.admin-sidebar')
     <main>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem">
-        <div><h2 class="mb-1">Blog Manager</h2><p class="text-muted">Manage AI and manual blog posts</p></div>
+        <div><h2 class="mb-1">Blog Manager</h2><p class="text-muted">Manage AI, manual, and n8n-imported blog posts</p></div>
         <div style="display:flex;gap:.5rem">
           <button onclick="openAiModal()" class="btn btn-outline btn-sm" id="ai-btn">✨ Generate AI Post</button>
           <a href="{{ route('admin.blog.create') }}" class="btn btn-primary btn-sm">+ Write Post</a>
@@ -27,7 +27,20 @@
               <td style="font-weight:500;font-family:var(--fu);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ $post->title }}</td>
               <td><span class="badge badge-gray">{{ $post->category }}</span></td>
               <td><span class="badge {{ ['draft'=>'badge-gold','published'=>'badge-green','archived'=>'badge-gray'][$post->status]??'badge-gray' }}">{{ ucfirst($post->status) }}</span></td>
-              <td>@if($post->is_ai_generated)<span class="badge badge-teal">AI</span>@else<span class="badge badge-gray">Manual</span>@endif</td>
+              <td>
+                @if($post->import_channel === 'n8n')
+                  <div style="display:flex;flex-direction:column;gap:.25rem">
+                    <span class="badge badge-teal">n8n</span>
+                    @if($post->source_name)
+                    <span class="text-muted" style="font-size:.76rem">{{ $post->source_name }}</span>
+                    @endif
+                  </div>
+                @elseif($post->is_ai_generated)
+                  <span class="badge badge-teal">AI</span>
+                @else
+                  <span class="badge badge-gray">Manual</span>
+                @endif
+              </td>
               <td>{{ number_format($post->view_count) }}</td>
               <td class="text-muted" style="white-space:nowrap">{{ $post->published_at?->format('d M Y') ?? $post->created_at->format('d M Y') }}</td>
               <td>

@@ -29,4 +29,9 @@ return [
         'bot_token'  => env('TELEGRAM_BOT_TOKEN'),
         'channel_id' => env('TELEGRAM_CHANNEL_ID'),
     ],
+
+    'n8n' => [
+        'base_url' => env('N8N_BASE_URL'),
+        'shared_token' => env('N8N_SHARED_TOKEN'),
+    ],
 ];
