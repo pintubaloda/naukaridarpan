@@ -27,6 +27,12 @@ class ParseExamPaperJob implements ShouldQueue
     {
         Log::info("ParseExamPaperJob started for paper #{$this->paper->id}");
 
+        $this->paper->refresh();
+        $this->paper->update([
+            'parse_status' => 'processing',
+            'parse_log' => trim(($this->paper->parse_log ? $this->paper->parse_log . ' ' : '') . 'Parser is running now.'),
+        ]);
+
         $parsed = match ($this->type) {
             'pdf'  => $parser->parsePdf($this->paper),
             'url'  => $parser->parseUrl($this->paper, $this->rawText ?? ''),
@@ -35,12 +41,17 @@ class ParseExamPaperJob implements ShouldQueue
 
         if (empty($parsed['questions'] ?? [])) {
             Log::warning("ParseExamPaperJob: no questions extracted for #{$this->paper->id}");
+            $this->paper->update([
+                'parse_status' => 'failed',
+                'parse_log' => trim(($this->paper->parse_log ? $this->paper->parse_log . ' ' : '') . 'Parser finished without extracting any questions.'),
+            ]);
             return;
         }
 
         $synced = $questionBankSync->syncFromExamPaper($this->paper->fresh(['category']), $parsed['questions']);
 
         $this->paper->update([
+            'parse_status' => 'done',
             'tao_sync_status' => 'pending',
             'tao_last_error' => null,
             'parse_log' => trim(($this->paper->parse_log ? $this->paper->parse_log . ' ' : '') . "Synced {$synced} question bank item(s)."),

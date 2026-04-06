@@ -36,9 +36,24 @@
           </div>
           <div>
             <div class="text-muted" style="font-size:.78rem">Parse Status</div>
-            <div style="margin-top:.2rem;font-weight:600">{{ ucfirst(str_replace('_', ' ', $paper->parse_status ?? 'pending')) }}</div>
+            <div id="parse-status-label" style="margin-top:.2rem;font-weight:600">{{ ucfirst(str_replace('_', ' ', $paper->parse_status ?? 'pending')) }}</div>
+            <div style="margin-top:.55rem;background:var(--border-l);border-radius:999px;height:10px;overflow:hidden">
+              @php
+                $initialProgress = match ($paper->parse_status) {
+                    'queued' => 25,
+                    'processing' => 65,
+                    'done' => 100,
+                    'failed' => 100,
+                    default => 5,
+                };
+              @endphp
+              <div id="parse-progress-bar" style="height:100%;width:{{ $initialProgress }}%;background:{{ $paper->parse_status === 'failed' ? 'var(--err)' : 'linear-gradient(90deg, var(--teal), #79c8ff)' }};transition:width .3s ease"></div>
+            </div>
+            <div id="parse-progress-note" class="text-muted" style="font-size:.8rem;margin-top:.35rem">{{ $initialProgress }}% complete</div>
             @if($paper->parse_log)
-            <div class="text-muted" style="font-size:.82rem;margin-top:.35rem;white-space:pre-wrap">{{ $paper->parse_log }}</div>
+            <div id="parse-log-text" class="text-muted" style="font-size:.82rem;margin-top:.35rem;white-space:pre-wrap">{{ $paper->parse_log }}</div>
+            @else
+            <div id="parse-log-text" class="text-muted" style="font-size:.82rem;margin-top:.35rem;white-space:pre-wrap"></div>
             @endif
           </div>
           <div class="g-grid" style="grid-template-columns:repeat(3, minmax(0,1fr));gap:.6rem">
@@ -61,11 +76,25 @@
           <div class="text-muted" style="font-size:.84rem;line-height:1.6;margin-bottom:1rem">
             Save the exam metadata first. When the title, year, subject, PDF mode, and answer-key mode are ready, click parse. The parser will create exam questions and sync the same questions with answers into the reusable question bank.
           </div>
-          <form action="{{ route('admin.exams.parse', $paper) }}" method="POST">
+          <form action="{{ route('admin.exams.parse', $paper) }}" method="POST" id="parse-paper-form">
             @csrf
-            <button type="submit" class="btn btn-primary" @disabled(!$paper->original_file && !$paper->source_url)>Parse Now</button>
+            <button
+              type="submit"
+              class="btn btn-primary"
+              id="parse-paper-button"
+              data-status-url="{{ route('admin.papers.parse-status', $paper) }}"
+              @disabled(!$paper->original_file && !$paper->source_url || in_array($paper->parse_status, ['queued','processing'], true))
+            >
+              {{ in_array($paper->parse_status, ['queued','processing'], true) ? 'Parsing In Progress' : 'Parse Now' }}
+            </button>
           </form>
-          <div class="text-muted" style="font-size:.78rem;margin-top:.65rem">Question order is already randomized during exam attempts.</div>
+          <div id="parse-help-text" class="text-muted" style="font-size:.78rem;margin-top:.65rem">
+            @if(in_array($paper->parse_status, ['queued','processing'], true))
+              Parsing is already running. Please wait for it to finish before trying again.
+            @else
+              Question order is already randomized during exam attempts.
+            @endif
+          </div>
         </div>
       </div>
     </div>
@@ -676,6 +705,66 @@ const questionBankSubjectFilter = document.getElementById('question-bank-subject
 const questionBankSelectAll = document.getElementById('question-bank-select-all');
 const questionBankClearFilters = document.getElementById('question-bank-clear-filters');
 const questionBankVisibleCount = document.getElementById('question-bank-visible-count');
+const parsePaperButton = document.getElementById('parse-paper-button');
+const parseStatusLabel = document.getElementById('parse-status-label');
+const parseProgressBar = document.getElementById('parse-progress-bar');
+const parseProgressNote = document.getElementById('parse-progress-note');
+const parseLogText = document.getElementById('parse-log-text');
+const parseHelpText = document.getElementById('parse-help-text');
+
+function prettyStatus(status) {
+  return String(status || 'pending').replaceAll('_', ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function applyParseState(payload) {
+  if (!payload) return;
+  const status = payload.status || 'pending';
+  const progress = Number(payload.progress || 0);
+  const running = ['queued', 'processing'].includes(status);
+
+  if (parseStatusLabel) parseStatusLabel.textContent = prettyStatus(status);
+  if (parseProgressBar) {
+    parseProgressBar.style.width = `${progress}%`;
+    parseProgressBar.style.background = status === 'failed'
+      ? 'var(--err)'
+      : 'linear-gradient(90deg, var(--teal), #79c8ff)';
+  }
+  if (parseProgressNote) {
+    parseProgressNote.textContent = status === 'failed'
+      ? 'Parsing stopped with an error'
+      : `${progress}% complete`;
+  }
+  if (parseLogText) parseLogText.textContent = payload.log || '';
+  if (parsePaperButton) {
+    parsePaperButton.disabled = running;
+    parsePaperButton.textContent = running ? 'Parsing In Progress' : 'Parse Now';
+  }
+  if (parseHelpText) {
+    parseHelpText.textContent = running
+      ? 'Parsing is already running. We are refreshing this status automatically.'
+      : (status === 'failed'
+          ? 'Parsing failed. Fix the issue above and click Parse Now again when ready.'
+          : 'Question order is already randomized during exam attempts.');
+  }
+}
+
+async function pollParseStatus() {
+  if (!parsePaperButton?.dataset.statusUrl) return;
+  try {
+    const response = await fetch(parsePaperButton.dataset.statusUrl, {
+      headers: { 'Accept': 'application/json' },
+      credentials: 'same-origin',
+    });
+    if (!response.ok) return;
+    const payload = await response.json();
+    applyParseState(payload);
+    if (['queued', 'processing'].includes(payload.status)) {
+      window.setTimeout(pollParseStatus, 4000);
+    }
+  } catch (error) {
+    // Keep the existing status visible; the admin can refresh manually if needed.
+  }
+}
 
 function getQuestionEditors() {
   return Array.from(document.querySelectorAll('[data-question-editor]'));
@@ -807,6 +896,7 @@ document.getElementById('answer_key_mode')?.addEventListener('change', toggleAns
 toggleAnswerKeyUrlGroup();
 
 applyQuestionBankFilters();
+pollParseStatus();
 </script>
 @endpush
 @endsection

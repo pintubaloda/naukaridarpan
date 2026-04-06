@@ -197,19 +197,30 @@ class AdminController extends Controller
             return back()->with('error', 'No PDF is attached to this exam yet.');
         }
 
-        $paper->update([
-            'parse_status' => 'pending',
-            'parse_log' => ($paper->pdf_kind === 'scanned' ? 'Queued OCR parser. ' : 'Queued text parser. ')
-                . match ($paper->answer_key_mode) {
-                    'separate_pdf' => 'Answer key expected from separate PDF.',
-                    'none' => 'No answer key expected.',
-                    default => 'Answer key expected in same PDF.',
-                },
-        ]);
+        if (in_array($paper->parse_status, ['queued', 'processing'], true)) {
+            return back()->with('error', 'Parsing is already in progress for this paper.');
+        }
+
+        $updated = ExamPaper::query()
+            ->whereKey($paper->id)
+            ->whereNotIn('parse_status', ['queued', 'processing'])
+            ->update([
+                'parse_status' => 'queued',
+                'parse_log' => ($paper->pdf_kind === 'scanned' ? 'Queued OCR parser. ' : 'Queued text parser. ')
+                    . match ($paper->answer_key_mode) {
+                        'separate_pdf' => 'Answer key expected from separate PDF.',
+                        'none' => 'No answer key expected.',
+                        default => 'Answer key expected in same PDF.',
+                    },
+            ]);
+
+        if (! $updated) {
+            return back()->with('error', 'Parsing is already in progress for this paper.');
+        }
 
         ParseExamPaperJob::dispatch($paper, 'pdf');
 
-        return back()->with('success', 'Parsing queued. Refresh in a few moments to see extracted questions.');
+        return back()->with('success', 'Parsing queued. We will keep the status visible here until it finishes.');
     }
 
     public function destroyExam(ExamPaper $paper)
@@ -809,11 +820,21 @@ class AdminController extends Controller
 
     public function parseStatus(\App\Models\ExamPaper $paper)
     {
+        $progress = match ($paper->parse_status) {
+            'queued' => 25,
+            'processing' => 65,
+            'done' => 100,
+            'failed' => 100,
+            default => 5,
+        };
+
         return response()->json([
             'status'          => $paper->parse_status,
             'total_questions' => $paper->total_questions,
             'question_types'  => $paper->question_types,
             'log'             => $paper->parse_log,
+            'progress'        => $progress,
+            'can_parse'       => ! in_array($paper->parse_status, ['queued', 'processing'], true),
         ]);
     }
 }
