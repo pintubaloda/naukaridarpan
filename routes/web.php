@@ -112,7 +112,6 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/exams',                             [AdminController::class, 'exams'])->name('exams.index');
     Route::get('/reports',                           [AdminController::class, 'reports'])->name('reports');
     Route::get('/automation-sources',                [AutomationAdminController::class, 'index'])->name('automation-sources.index');
-    Route::post('/automation-sources',               [AutomationAdminController::class, 'store'])->name('automation-sources.store');
     Route::put('/automation-sources/{source}',       [AutomationAdminController::class, 'update'])->name('automation-sources.update');
     Route::get('/qti',                               [QtiAdminController::class, 'index'])->name('qti.index');
     Route::post('/qti/import',                       [QtiAdminController::class, 'import'])->name('qti.import');
@@ -139,6 +138,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/exams/pending',                     [ExamApprovalController::class, 'pending'])->name('exams.pending');
     Route::get('/exams/{paper}/edit',                [AdminController::class, 'editExam'])->name('exams.edit');
     Route::put('/exams/{paper}',                     [AdminController::class, 'updateExam'])->name('exams.update');
+    Route::post('/exams/{paper}/parse',              [AdminController::class, 'parseExam'])->name('exams.parse');
     Route::post('/exams/{paper}/import-question-bank',[AdminController::class, 'importQuestionBank'])->name('exams.import-question-bank');
     Route::post('/exams/{paper}/sync-tao',           [AdminController::class, 'syncExamToTao'])->name('exams.sync-tao');
     Route::post('/exams/{paper}/approve',            [ExamApprovalController::class, 'approve'])->name('exams.approve');

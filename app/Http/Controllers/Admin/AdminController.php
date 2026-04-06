@@ -2,8 +2,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\ParseExamPaperJob;
 use App\Models\ExamPaperTaoSyncLog;
 use App\Models\{User, ExamAttempt, ExamPaper, Purchase, PayoutRequest, PlatformSetting, ExamTemplate, QuestionBankItem};
+use App\Services\Exams\QuestionBankSyncService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -189,6 +191,27 @@ class AdminController extends Controller
         return back()->with('success', 'Scraped paper published as free exam.');
     }
 
+    public function parseExam(ExamPaper $paper)
+    {
+        if (! $paper->original_file && ! $paper->source_url) {
+            return back()->with('error', 'No PDF is attached to this exam yet.');
+        }
+
+        $paper->update([
+            'parse_status' => 'pending',
+            'parse_log' => ($paper->pdf_kind === 'scanned' ? 'Queued OCR parser. ' : 'Queued text parser. ')
+                . match ($paper->answer_key_mode) {
+                    'separate_pdf' => 'Answer key expected from separate PDF.',
+                    'none' => 'No answer key expected.',
+                    default => 'Answer key expected in same PDF.',
+                },
+        ]);
+
+        ParseExamPaperJob::dispatch($paper, 'pdf');
+
+        return back()->with('success', 'Parsing queued. Refresh in a few moments to see extracted questions.');
+    }
+
     public function destroyExam(ExamPaper $paper)
     {
         abort_if($paper->status === 'approved', 403, 'Approved exams cannot be deleted from admin.');
@@ -258,6 +281,7 @@ class AdminController extends Controller
         $r->validate([
             'title'            => 'required|string|max:255',
             'subject'          => 'nullable|string|max:255',
+            'exam_year'        => 'nullable|integer|min:1900|max:2100',
             'exam_type'        => 'required|in:mock,previous_year',
             'category_id'      => 'required|exists:categories,id',
             'description'      => 'nullable|string|max:2000',
@@ -267,6 +291,8 @@ class AdminController extends Controller
             'negative_marking' => 'nullable|numeric|min:0|max:1',
             'max_retakes'      => 'required|integer|min:1|max:10',
             'difficulty'       => 'required|in:easy,medium,hard',
+            'pdf_kind'         => 'required|in:text,scanned',
+            'answer_key_mode'  => 'required|in:same_pdf,separate_pdf,none',
             'seller_price'     => 'required|numeric|min:0',
             'is_free'          => 'boolean',
             'tags'             => 'nullable|string',
@@ -322,6 +348,7 @@ class AdminController extends Controller
         $paper->update([
             'title'            => $r->title,
             'subject'          => $r->subject,
+            'exam_year'        => $r->input('exam_year') ?: null,
             'exam_type'        => $r->exam_type,
             'category_id'      => $r->category_id,
             'description'      => $r->description,
@@ -331,6 +358,8 @@ class AdminController extends Controller
             'negative_marking' => $r->negative_marking ?? 0,
             'max_retakes'      => $r->max_retakes,
             'difficulty'       => $r->difficulty,
+            'pdf_kind'         => $r->input('pdf_kind', $paper->pdf_kind ?: 'text'),
+            'answer_key_mode'  => $r->input('answer_key_mode', $paper->answer_key_mode ?: 'same_pdf'),
             'seller_price'     => $sellerPrice,
             'platform_markup'  => $markup,
             'student_price'    => $r->boolean('is_free') ? 0 : $sellerPrice + $markup,
@@ -350,6 +379,10 @@ class AdminController extends Controller
                 ? collect($questionsData)->sum(fn ($question) => (float) ($question['marks'] ?? 1))
                 : $r->max_marks,
         ]);
+
+        if (!empty($questionsData)) {
+            app(QuestionBankSyncService::class)->syncFromExamPaper($paper->fresh(['category']), $questionsData);
+        }
 
         return back()->with('success', 'Exam updated.');
     }
@@ -693,6 +726,7 @@ class AdminController extends Controller
         $r->validate([
             'title'           => 'required|string|max:255',
             'subject'         => 'nullable|string|max:255',
+            'exam_year'       => 'nullable|integer|min:1900|max:2100',
             'category_id'     => 'required|exists:categories,id',
             'description'     => 'nullable|string|max:2000',
             'language'        => 'required|in:English,Hindi,Both',
@@ -704,6 +738,9 @@ class AdminController extends Controller
             'seller_price'    => 'required|numeric|min:0',
             'is_free'         => 'boolean',
             'tags'            => 'nullable|string',
+            'pdf_kind'        => 'required|in:text,scanned',
+            'answer_key_mode' => 'required|in:same_pdf,separate_pdf,none',
+            'answer_key_pdf_url' => 'nullable|url',
             'exam_sections_text' => 'nullable|string',
             'interoperability_profile' => 'nullable|string|max:100',
             'qti_metadata_text' => 'nullable|string',
@@ -724,11 +761,15 @@ class AdminController extends Controller
             'category_id'      => $r->category_id,
             'title'            => $r->title,
             'subject'          => $r->subject,
+            'exam_year'        => $r->input('exam_year') ?: null,
             'exam_type'        => $r->exam_type ?? 'mock',
             'slug'             => \Illuminate\Support\Str::slug($r->title) . '-' . \Illuminate\Support\Str::random(5),
             'description'      => $r->description,
             'language'         => $r->language,
             'source'           => $r->input_type === 'typed' ? 'typed' : ($r->input_type === 'url' ? 'upload' : 'upload'),
+            'pdf_kind'         => $r->input('pdf_kind', 'text'),
+            'answer_key_mode'  => $r->input('answer_key_mode', 'same_pdf'),
+            'answer_key_pdf_url' => $r->input('answer_key_mode') === 'separate_pdf' ? ($r->input('answer_key_pdf_url') ?: null) : null,
             'duration_minutes' => $r->duration_minutes,
             'max_marks'        => $r->max_marks,
             'negative_marking' => $r->negative_marking ?? 0,
@@ -744,13 +785,13 @@ class AdminController extends Controller
             'qti_metadata'     => $this->parseKeyValueText($r->input('qti_metadata_text', '')),
             'status'           => $r->boolean('publish_now') ? 'approved' : 'draft',
             'parse_status'     => 'pending',
+            'parse_log'        => 'PDF saved. Review metadata, then click Parse.',
         ]);
 
         $disk = 'public';
         if ($r->input_type === 'pdf' && $r->hasFile('pdf_file')) {
             $path = $r->file('pdf_file')->store("papers/{$paper->id}", $disk);
             $paper->update(['original_file' => $path]);
-            \App\Jobs\ParseExamPaperJob::dispatch($paper, 'pdf');
         } elseif ($r->input_type === 'url' && $r->pdf_url) {
             $resp = \Illuminate\Support\Facades\Http::timeout(60)->get($r->pdf_url);
             if (! $resp->successful()) {
@@ -759,12 +800,11 @@ class AdminController extends Controller
             $path = "papers/{$paper->id}/" . \Illuminate\Support\Str::uuid() . '.pdf';
             \Illuminate\Support\Facades\Storage::disk($disk)->put($path, $resp->body());
             $paper->update(['original_file' => $path]);
-            \App\Jobs\ParseExamPaperJob::dispatch($paper, 'pdf');
         } elseif ($r->input_type === 'typed' && $r->typed_content) {
-            \App\Jobs\ParseExamPaperJob::dispatch($paper, 'typed', $r->typed_content);
+            ParseExamPaperJob::dispatch($paper, 'typed', $r->typed_content);
         }
 
-        return redirect()->route('admin.papers.create', ['paper_id' => $paper->id])->with('success', 'Paper created. Parsing started.');
+        return redirect()->route('admin.exams.edit', $paper)->with('success', 'Paper saved. Review metadata, then click Parse when ready.');
     }
 
     public function parseStatus(\App\Models\ExamPaper $paper)

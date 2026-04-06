@@ -7,7 +7,7 @@
     <main>
       <div style="margin-bottom:1.5rem">
         <h2 class="mb-1">Upload Paper (Admin)</h2>
-        <p class="text-muted">Create exams from PDF, typed/manual entry, or start from one of our saved templates when you want a faster structured setup.</p>
+        <p class="text-muted">Save exams from PDF or typed/manual entry as drafts first. Review the metadata in admin, then click parse when you are ready.</p>
         <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.75rem">
           <a href="{{ route('admin.papers.create', ['input_type' => 'typed']) }}" class="btn btn-outline btn-sm">Manual Exam Entry</a>
           <a href="{{ route('admin.papers.create', ['input_type' => 'pdf']) }}" class="btn btn-ghost btn-sm">Upload PDF</a>
@@ -33,7 +33,7 @@
               <div id="parse-types" style="font-weight:600">—</div>
             </div>
           </div>
-          <div id="parse-log" style="margin-top:1rem;font-size:.85rem;color:var(--ink-l)">Waiting for parser…</div>
+          <div id="parse-log" style="margin-top:1rem;font-size:.85rem;color:var(--ink-l)">Saved as draft. Open the exam and click Parse when ready.</div>
         </div>
       </div>
       @endif
@@ -88,6 +88,7 @@
           <div class="card-body">
             <div class="form-group"><label class="form-label">Title *</label><input type="text" name="title" class="form-control" value="{{ old('title', optional($selectedTemplate)->name) }}" required></div>
             <div class="form-group"><label class="form-label">Subject</label><input type="text" name="subject" class="form-control" value="{{ old('subject') }}"></div>
+            <div class="form-group"><label class="form-label">Exam Year</label><input type="number" name="exam_year" class="form-control" value="{{ old('exam_year') }}" min="1900" max="{{ now()->year + 2 }}"></div>
             <div class="form-group"><label class="form-label">Exam Type</label>
               <select name="exam_type" class="form-control">
                 <option value="mock" {{ old('exam_type') === 'mock' ? 'selected' : '' }}>Mock Exam Paper</option>
@@ -110,6 +111,27 @@
               <div class="form-group"><label class="form-label">Duration (min)</label><input type="number" name="duration_minutes" class="form-control" value="{{ old('duration_minutes', optional($selectedTemplate)->duration_minutes ?? 60) }}" min="10" required></div>
               <div class="form-group"><label class="form-label">Total Marks</label><input type="number" name="max_marks" class="form-control" value="100" min="10" required></div>
               <div class="form-group"><label class="form-label">Negative Marking</label><input type="number" name="negative_marking" class="form-control" value="{{ old('negative_marking', optional($selectedTemplate)->default_negative_marking ?? 0) }}" step="0.25" min="0"></div>
+            </div>
+            <div class="g-grid mt-2" style="grid-template-columns:1fr 1fr;gap:.75rem">
+              <div class="form-group" style="margin:0">
+                <label class="form-label">PDF Kind</label>
+                <select name="pdf_kind" class="form-control">
+                  <option value="text" {{ old('pdf_kind', 'text') === 'text' ? 'selected' : '' }}>Text PDF</option>
+                  <option value="scanned" {{ old('pdf_kind') === 'scanned' ? 'selected' : '' }}>Scanned PDF</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin:0">
+                <label class="form-label">Answer Key Mode</label>
+                <select name="answer_key_mode" class="form-control" id="answer-key-mode">
+                  <option value="same_pdf" {{ old('answer_key_mode', 'same_pdf') === 'same_pdf' ? 'selected' : '' }}>Same PDF</option>
+                  <option value="separate_pdf" {{ old('answer_key_mode') === 'separate_pdf' ? 'selected' : '' }}>Separate PDF</option>
+                  <option value="none" {{ old('answer_key_mode') === 'none' ? 'selected' : '' }}>No Answer Key</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group mt-2" id="answer-key-url-group" style="display:none">
+              <label class="form-label">Answer Key PDF URL</label>
+              <input type="url" name="answer_key_pdf_url" class="form-control" value="{{ old('answer_key_pdf_url') }}">
             </div>
             <div class="g-grid mt-2" style="grid-template-columns:1fr 1fr;gap:.75rem">
               <div class="form-group"><label class="form-label">Difficulty</label><select name="difficulty" class="form-control"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select></div>
@@ -173,7 +195,7 @@
           </div>
         </div>
 
-        <button type="submit" class="btn btn-primary btn-lg">Create Paper</button>
+        <button type="submit" class="btn btn-primary btn-lg">Save Draft Paper</button>
       </form>
     </main>
   </div>
@@ -191,8 +213,16 @@ function togglePaperInputFields() {
   if (typed) typed.style.display = selected === 'typed' ? 'block' : 'none';
 }
 
+function toggleAnswerKeyUrl() {
+  const selected = document.getElementById('answer-key-mode')?.value || 'same_pdf';
+  const answerKeyUrlGroup = document.getElementById('answer-key-url-group');
+  if (answerKeyUrlGroup) answerKeyUrlGroup.style.display = selected === 'separate_pdf' ? 'block' : 'none';
+}
+
 document.getElementById('paper-input-type')?.addEventListener('change', togglePaperInputFields);
 togglePaperInputFields();
+document.getElementById('answer-key-mode')?.addEventListener('change', toggleAnswerKeyUrl);
+toggleAnswerKeyUrl();
 
 document.getElementById('apply-template-btn')?.addEventListener('click', () => {
   const templateId = document.getElementById('template-select')?.value;

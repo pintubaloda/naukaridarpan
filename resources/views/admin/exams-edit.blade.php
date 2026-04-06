@@ -13,6 +13,64 @@
       @if(session('error'))<div class="alert alert-error mb-3">{{ session('error') }}</div>@endif
       @if($errors->any())<div class="alert alert-error mb-3">{{ $errors->first() }}</div>@endif
 
+  @php
+    $storedPdfUrl = $paper->original_file ? \Illuminate\Support\Facades\Storage::disk('public')->url($paper->original_file) : null;
+  @endphp
+
+  <div class="card card-static mb-3">
+    <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border-l);font-weight:600;font-family:var(--fu)">Paper Intake & Parse</div>
+    <div class="card-body">
+      <div class="g-grid" style="grid-template-columns:1.35fr .95fr;gap:1rem;align-items:start">
+        <div style="display:grid;gap:.75rem">
+          <div>
+            <div class="text-muted" style="font-size:.78rem">Saved PDF</div>
+            <div style="margin-top:.2rem;font-weight:600">
+              @if($storedPdfUrl)
+                <a href="{{ $storedPdfUrl }}" target="_blank" rel="noopener">Open saved paper PDF</a>
+              @elseif($paper->source_url)
+                <a href="{{ $paper->source_url }}" target="_blank" rel="noopener">Open source PDF URL</a>
+              @else
+                <span class="text-muted">No PDF attached yet</span>
+              @endif
+            </div>
+          </div>
+          <div>
+            <div class="text-muted" style="font-size:.78rem">Parse Status</div>
+            <div style="margin-top:.2rem;font-weight:600">{{ ucfirst(str_replace('_', ' ', $paper->parse_status ?? 'pending')) }}</div>
+            @if($paper->parse_log)
+            <div class="text-muted" style="font-size:.82rem;margin-top:.35rem;white-space:pre-wrap">{{ $paper->parse_log }}</div>
+            @endif
+          </div>
+          <div class="g-grid" style="grid-template-columns:repeat(3, minmax(0,1fr));gap:.6rem">
+            <div class="card card-static card-body" style="padding:.75rem .85rem">
+              <div class="text-muted" style="font-size:.76rem">PDF Mode</div>
+              <div style="font-weight:700;margin-top:.2rem">{{ strtoupper($paper->pdf_kind ?? 'text') }}</div>
+            </div>
+            <div class="card card-static card-body" style="padding:.75rem .85rem">
+              <div class="text-muted" style="font-size:.76rem">Answer Key</div>
+              <div style="font-weight:700;margin-top:.2rem">{{ ucfirst(str_replace('_', ' ', $paper->answer_key_mode ?? 'same_pdf')) }}</div>
+            </div>
+            <div class="card card-static card-body" style="padding:.75rem .85rem">
+              <div class="text-muted" style="font-size:.76rem">Question Bank</div>
+              <div style="font-weight:700;margin-top:.2rem">{{ app(\App\Services\Exams\QuestionBankSyncService::class)->resolveBankName($paper) }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="card card-static card-body" style="padding:1rem">
+          <div style="font-weight:600;font-family:var(--fu);margin-bottom:.35rem">Admin Review Step</div>
+          <div class="text-muted" style="font-size:.84rem;line-height:1.6;margin-bottom:1rem">
+            Save the exam metadata first. When the title, year, subject, PDF mode, and answer-key mode are ready, click parse. The parser will create exam questions and sync the same questions with answers into the reusable question bank.
+          </div>
+          <form action="{{ route('admin.exams.parse', $paper) }}" method="POST">
+            @csrf
+            <button type="submit" class="btn btn-primary" @disabled(!$paper->original_file && !$paper->source_url)>Parse Now</button>
+          </form>
+          <div class="text-muted" style="font-size:.78rem;margin-top:.65rem">Question order is already randomized during exam attempts.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="card card-static mb-3">
     <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border-l);font-weight:600;font-family:var(--fu)">Publish Readiness</div>
     <div class="card-body">
@@ -269,7 +327,10 @@
       <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border-l);font-weight:600;font-family:var(--fu)">Basic Information</div>
       <div class="card-body">
         <div class="form-group"><label class="form-label">Title *</label><input type="text" name="title" class="form-control" value="{{ old('title',$paper->title) }}" required></div>
-        <div class="form-group"><label class="form-label">Subject</label><input type="text" name="subject" class="form-control" value="{{ old('subject',$paper->subject) }}"></div>
+        <div class="g-grid" style="grid-template-columns:1fr 180px;gap:.75rem">
+          <div class="form-group" style="margin:0"><label class="form-label">Subject</label><input type="text" name="subject" class="form-control" value="{{ old('subject',$paper->subject) }}"></div>
+          <div class="form-group" style="margin:0"><label class="form-label">Year</label><input type="number" name="exam_year" class="form-control" value="{{ old('exam_year',$paper->exam_year) }}" min="1900" max="2100" placeholder="2025"></div>
+        </div>
         <div class="g-grid" style="grid-template-columns:1fr 1fr;gap:.75rem">
           <div class="form-group" style="margin:0">
             <label class="form-label">Category</label>
@@ -322,6 +383,23 @@
           <div class="form-group" style="margin:0"><label class="form-label">Difficulty</label><select name="difficulty" class="form-control"><option value="easy" {{ old('difficulty',$paper->difficulty)==='easy'?'selected':'' }}>Easy</option><option value="medium" {{ old('difficulty',$paper->difficulty)==='medium'?'selected':'' }}>Medium</option><option value="hard" {{ old('difficulty',$paper->difficulty)==='hard'?'selected':'' }}>Hard</option></select></div>
           <div class="form-group" style="margin:0"><label class="form-label">Max Retakes</label><input type="number" name="max_retakes" class="form-control" value="{{ old('max_retakes',$paper->max_retakes) }}" min="1" max="10"></div>
         </div>
+        <div class="g-grid mt-2" style="grid-template-columns:1fr 1fr;gap:.75rem">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">PDF Kind</label>
+            <select name="pdf_kind" id="answer-pdf-kind" class="form-control">
+              <option value="text" {{ old('pdf_kind', $paper->pdf_kind ?? 'text') === 'text' ? 'selected' : '' }}>Text PDF</option>
+              <option value="scanned" {{ old('pdf_kind', $paper->pdf_kind) === 'scanned' ? 'selected' : '' }}>Scanned PDF (OCR)</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Answer Key Source</label>
+            <select name="answer_key_mode" id="answer_key_mode" class="form-control">
+              <option value="same_pdf" {{ old('answer_key_mode', $paper->answer_key_mode ?? 'same_pdf') === 'same_pdf' ? 'selected' : '' }}>Same PDF</option>
+              <option value="separate_pdf" {{ old('answer_key_mode', $paper->answer_key_mode) === 'separate_pdf' ? 'selected' : '' }}>Separate PDF</option>
+              <option value="none" {{ old('answer_key_mode', $paper->answer_key_mode) === 'none' ? 'selected' : '' }}>No answer key</option>
+            </select>
+          </div>
+        </div>
         <div class="form-group mt-2" style="margin-bottom:0">
           <label class="form-label">Exam Sections</label>
           <textarea name="exam_sections_text" class="form-control" rows="4" placeholder="General Awareness: Static GK and current affairs&#10;Quantitative Aptitude: Arithmetic, algebra, data interpretation">{{ old('exam_sections_text', collect($paper->exam_sections ?? [])->map(fn($section) => ($section['name'] ?? '').(($section['description'] ?? null) ? ': '.($section['description']) : ''))->implode("\n")) }}</textarea>
@@ -352,11 +430,11 @@
             <textarea name="qti_metadata_text" class="form-control" rows="4" placeholder="manifest_identifier: nd-assessment-001&#10;tool_vendor: Naukaridarpan">{{ old('qti_metadata_text', collect($paper->qti_metadata ?? [])->map(fn($value, $key) => $key.': '.$value)->implode("\n")) }}</textarea>
           </div>
         </div>
-        <div class="form-group mt-2" style="margin-bottom:0">
+        <div class="form-group mt-2" style="margin-bottom:0" id="answer-key-url-group">
           <label class="form-label">Answer Key PDF URL</label>
           <input type="url" name="answer_key_pdf_url" class="form-control" value="{{ old('answer_key_pdf_url', $paper->answer_key_pdf_url) }}" placeholder="https://upsc.gov.in/.../answer-key.pdf">
           <div class="text-muted" style="font-size:.78rem;margin-top:.35rem">
-            Keep imported exams in draft, add the official answer-key PDF here, and let n8n apply serial-wise answers before you approve the exam.
+            Use this only when the answer key lives in a separate PDF.
             @if($paper->answer_key_applied_at)
               <br>Last applied: {{ $paper->answer_key_applied_at->format('d M Y, h:i A') }}.
             @endif
@@ -717,6 +795,16 @@ questionBankClearFilters?.addEventListener('click', () => {
 getBankItems().forEach((item) => {
   item.querySelector('input[type="checkbox"]')?.addEventListener('change', applyQuestionBankFilters);
 });
+
+function toggleAnswerKeyUrlGroup() {
+  const mode = document.getElementById('answer_key_mode')?.value || 'same_pdf';
+  const group = document.getElementById('answer-key-url-group');
+  if (!group) return;
+  group.style.display = mode === 'separate_pdf' ? 'block' : 'none';
+}
+
+document.getElementById('answer_key_mode')?.addEventListener('change', toggleAnswerKeyUrlGroup);
+toggleAnswerKeyUrlGroup();
 
 applyQuestionBankFilters();
 </script>

@@ -26,7 +26,7 @@ class ExamAuthoringController extends Controller
             });
         }
 
-        foreach (['category_id', 'question_type', 'difficulty', 'subject'] as $filter) {
+        foreach (['category_id', 'question_type', 'difficulty', 'subject', 'bank_name'] as $filter) {
             if ($request->filled($filter)) {
                 $query->where($filter, $request->{$filter});
             }
@@ -35,10 +35,11 @@ class ExamAuthoringController extends Controller
         $items = $query->paginate(20)->withQueryString();
         $categories = Category::orderBy('name')->get(['id', 'name']);
         $subjects = QuestionBankItem::query()->whereNotNull('subject')->distinct()->orderBy('subject')->pluck('subject');
+        $bankNames = QuestionBankItem::query()->whereNotNull('bank_name')->distinct()->orderBy('bank_name')->pluck('bank_name');
         $totalQuestions = QuestionBankItem::count();
         $activeQuestions = QuestionBankItem::where('is_active', true)->count();
 
-        return view('admin.question-bank.index', compact('items', 'categories', 'subjects', 'totalQuestions', 'activeQuestions'));
+        return view('admin.question-bank.index', compact('items', 'categories', 'subjects', 'bankNames', 'totalQuestions', 'activeQuestions'));
     }
 
     public function storeQuestionBankItem(Request $request)
@@ -48,6 +49,7 @@ class ExamAuthoringController extends Controller
         QuestionBankItem::create([
             'created_by' => auth()->id(),
             'category_id' => $data['category_id'],
+            'bank_name' => $data['bank_name'] ?? null,
             'subject' => $data['subject'] ?? null,
             'section' => $data['section'] ?? null,
             'topic' => $data['topic'] ?? null,
@@ -79,6 +81,7 @@ class ExamAuthoringController extends Controller
 
         $item->update([
             'category_id' => $data['category_id'],
+            'bank_name' => $data['bank_name'] ?? null,
             'subject' => $data['subject'] ?? null,
             'section' => $data['section'] ?? null,
             'topic' => $data['topic'] ?? null,
@@ -109,6 +112,7 @@ class ExamAuthoringController extends Controller
         QuestionBankItem::create([
             'created_by' => auth()->id(),
             'category_id' => $item->category_id,
+            'bank_name' => $item->bank_name,
             'subject' => $item->subject,
             'section' => $item->section,
             'topic' => $item->topic,
@@ -283,6 +287,7 @@ class ExamAuthoringController extends Controller
     {
         return $request->validate([
             'category_id' => 'required|exists:categories,id',
+            'bank_name' => 'nullable|string|max:120',
             'subject' => 'nullable|string|max:255',
             'section' => 'nullable|string|max:255',
             'topic' => 'nullable|string|max:255',

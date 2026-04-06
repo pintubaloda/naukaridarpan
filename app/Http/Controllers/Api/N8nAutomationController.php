@@ -9,7 +9,6 @@ use App\Models\BlogPost;
 use App\Models\Category;
 use App\Models\ExamPaper;
 use App\Models\ProfessorLead;
-use App\Jobs\ParseExamPaperJob;
 use App\Services\Exams\AnswerKeyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -218,41 +217,8 @@ class N8nAutomationController extends Controller
                 'blog_import' => url('/api/v1/automation/blog/import'),
                 'professor_leads_import' => url('/api/v1/automation/professor-leads/import'),
                 'exam_import' => url('/api/v1/automation/exams/import'),
-                'paper_sources' => url('/api/v1/automation/paper-sources'),
                 'pending_answer_keys' => url('/api/v1/automation/exams/pending-answer-keys'),
             ],
-        ]);
-    }
-
-    public function paperSources(Request $request)
-    {
-        $this->authorizeAutomation($request);
-
-        $sources = AutomationSource::query()
-            ->where('is_active', true)
-            ->whereNotNull('listing_page_url')
-            ->when($request->filled('source_type'), fn ($query) => $query->where('source_type', (string) $request->input('source_type')))
-            ->when($request->filled('subject'), fn ($query) => $query->where('subject', (string) $request->input('subject')))
-            ->orderBy('subject')
-            ->orderBy('name')
-            ->get([
-                'id',
-                'subject',
-                'name',
-                'source_type',
-                'site_kind',
-                'base_url',
-                'listing_page_url',
-                'answer_key_listing_url',
-                'pdf_kind',
-                'answer_key_mode',
-                'discovery_query',
-                'notes',
-            ]);
-
-        return response()->json([
-            'success' => true,
-            'sources' => $sources,
         ]);
     }
 
@@ -268,10 +234,14 @@ class N8nAutomationController extends Controller
             'exams.*.source_name' => 'nullable|string|max:255',
             'exams.*.description' => 'nullable|string',
             'exams.*.subject' => 'nullable|string|max:255',
+            'exams.*.exam_year' => 'nullable|integer|min:1900|max:2100',
             'exams.*.exam_type' => 'nullable|in:mock,previous_year',
             'exams.*.category_slug' => 'nullable|string|max:100',
             'exams.*.language' => 'nullable|in:English,Hindi,Both',
             'exams.*.difficulty' => 'nullable|in:easy,medium,hard',
+            'exams.*.pdf_kind' => 'nullable|in:text,scanned',
+            'exams.*.answer_key_mode' => 'nullable|in:same_pdf,separate_pdf,none',
+            'exams.*.answer_key_pdf_url' => 'nullable|url|max:1000',
             'exams.*.tags' => 'nullable|array',
         ]);
 
@@ -297,6 +267,7 @@ class N8nAutomationController extends Controller
                 'category_id' => $category->id,
                 'title' => $examData['title'],
                 'subject' => $examData['subject'] ?? ($category->slug ?? null),
+                'exam_year' => $examData['exam_year'] ?? null,
                 'exam_type' => $examData['exam_type'] ?? 'previous_year',
                 'slug' => $paper->slug ?: Str::slug($examData['title']) . '-' . Str::random(5),
                 'description' => $examData['description'] ?? 'Official exam paper imported by n8n. Draft review pending.',
@@ -304,6 +275,9 @@ class N8nAutomationController extends Controller
                 'difficulty' => $examData['difficulty'] ?? 'medium',
                 'source' => 'scraped',
                 'source_url' => $lookupUrl,
+                'pdf_kind' => $examData['pdf_kind'] ?? 'text',
+                'answer_key_mode' => $examData['answer_key_mode'] ?? 'same_pdf',
+                'answer_key_pdf_url' => $examData['answer_key_pdf_url'] ?? null,
                 'is_free' => true,
                 'seller_price' => 0,
                 'platform_markup' => 0,
@@ -315,7 +289,10 @@ class N8nAutomationController extends Controller
             $paper->save();
 
             if ($this->syncPaperPdf($paper, $examData['pdf_url'])) {
-                ParseExamPaperJob::dispatch($paper, 'pdf');
+                $paper->update([
+                    'parse_status' => 'pending',
+                    'parse_log' => 'PDF saved. Waiting for admin review before parsing.',
+                ]);
             }
 
             $processed++;

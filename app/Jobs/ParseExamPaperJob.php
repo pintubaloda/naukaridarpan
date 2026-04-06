@@ -3,6 +3,7 @@ namespace App\Jobs;
 
 use App\Models\ExamPaper;
 use App\Services\AI\PaperParserService;
+use App\Services\Exams\QuestionBankSyncService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -22,7 +23,7 @@ class ParseExamPaperJob implements ShouldQueue
         private ?string   $rawText = null
     ) {}
 
-    public function handle(PaperParserService $parser): void
+    public function handle(PaperParserService $parser, QuestionBankSyncService $questionBankSync): void
     {
         Log::info("ParseExamPaperJob started for paper #{$this->paper->id}");
 
@@ -37,9 +38,12 @@ class ParseExamPaperJob implements ShouldQueue
             return;
         }
 
+        $synced = $questionBankSync->syncFromExamPaper($this->paper->fresh(['category']), $parsed['questions']);
+
         $this->paper->update([
             'tao_sync_status' => 'pending',
             'tao_last_error' => null,
+            'parse_log' => trim(($this->paper->parse_log ? $this->paper->parse_log . ' ' : '') . "Synced {$synced} question bank item(s)."),
         ]);
 
         Log::info("ParseExamPaperJob completed for paper #{$this->paper->id}");

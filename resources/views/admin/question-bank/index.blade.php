@@ -36,7 +36,11 @@
               @endforeach
             </select>
 
-            <div class="g-grid" style="grid-template-columns:1fr 1fr;gap:.75rem;margin-top:.75rem">
+            <div class="g-grid" style="grid-template-columns:1fr 1fr 1fr;gap:.75rem;margin-top:.75rem">
+              <div>
+                <label class="label">Question Bank</label>
+                <input name="bank_name" class="input" placeholder="SSC">
+              </div>
               <div>
                 <label class="label">Subject</label>
                 <input name="subject" class="input" placeholder="Reasoning">
@@ -157,7 +161,13 @@
                 @endforeach
               </select>
             </div>
-            <div style="margin-top:.75rem;display:flex;gap:.75rem;align-items:center">
+            <div style="margin-top:.75rem;display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
+              <select name="bank_name" class="input" style="max-width:220px">
+                <option value="">All banks</option>
+                @foreach($bankNames as $bankName)
+                <option value="{{ $bankName }}" @selected(request('bank_name') === $bankName)>{{ $bankName }}</option>
+                @endforeach
+              </select>
               <select name="subject" class="input" style="max-width:240px">
                 <option value="">All subjects</option>
                 @foreach($subjects as $subject)
@@ -177,9 +187,12 @@
               <article style="border:1px solid var(--border-l);border-radius:16px;padding:1rem;background:#fff">
                 <div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start">
                   <div>
-                    <div style="font-size:.78rem;color:var(--ink-l);margin-bottom:.35rem">{{ $item->category->name ?? 'Uncategorized' }} · {{ strtoupper($item->question_type) }} · {{ ucfirst($item->difficulty) }}</div>
+                    <div style="font-size:.78rem;color:var(--ink-l);margin-bottom:.35rem">{{ $item->bank_name ?: 'General Bank' }} · {{ $item->category->name ?? 'Uncategorized' }} · {{ strtoupper($item->question_type) }} · {{ ucfirst($item->difficulty) }}</div>
                     <div style="font-weight:600;font-family:var(--fu);margin-bottom:.35rem">{{ $item->question_text }}</div>
                     <div class="text-muted" style="font-size:.85rem">{{ collect([$item->subject, $item->section, $item->topic])->filter()->join(' · ') }}</div>
+                    @if($item->source_exam_title)
+                    <div class="text-muted" style="font-size:.78rem;margin-top:.3rem">Source exam: {{ $item->source_exam_title }}{{ $item->source_exam_year ? ' · '.$item->source_exam_year : '' }}</div>
+                    @endif
                   </div>
                   <div style="text-align:right;font-size:.82rem">
                     <div>{{ number_format((float) $item->marks, 2) }} marks</div>
@@ -210,7 +223,8 @@
                         <option value="{{ $category->id }}" {{ (string) $item->category_id === (string) $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
                         @endforeach
                       </select>
-                      <div class="g-grid" style="grid-template-columns:1fr 1fr 1fr;gap:.65rem">
+                      <div class="g-grid" style="grid-template-columns:1fr 1fr 1fr 1fr;gap:.65rem">
+                        <input name="bank_name" class="input" value="{{ $item->bank_name }}" placeholder="Question bank">
                         <input name="subject" class="input" value="{{ $item->subject }}" placeholder="Subject">
                         <input name="section" class="input" value="{{ $item->section }}" placeholder="Section">
                         <input name="topic" class="input" value="{{ $item->topic }}" placeholder="Topic">

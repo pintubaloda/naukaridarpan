@@ -9,6 +9,11 @@ class QuestionBankItem extends Model
     protected $fillable = [
         'created_by',
         'category_id',
+        'bank_name',
+        'source_exam_paper_id',
+        'source_exam_title',
+        'source_exam_year',
+        'source_question_serial',
         'subject',
         'section',
         'topic',
@@ -33,6 +38,8 @@ class QuestionBankItem extends Model
         'advanced_metadata' => 'array',
         'tags' => 'array',
         'is_active' => 'boolean',
+        'source_exam_year' => 'integer',
+        'source_question_serial' => 'integer',
         'marks' => 'decimal:2',
         'negative_marking' => 'decimal:2',
     ];
@@ -45,5 +52,10 @@ class QuestionBankItem extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function sourceExamPaper()
+    {
+        return $this->belongsTo(ExamPaper::class, 'source_exam_paper_id');
     }
 }
